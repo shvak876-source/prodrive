@@ -1,17 +1,17 @@
 import { lazy, Suspense } from "react";
 import { Route, Routes, useLocation } from "react-router-dom";
 import { SmoothScroll } from "./motion/SmoothScroll";
-import { Header } from "./components/Header";
-import { Footer } from "./components/Footer";
-import Home from "./pages/Home";
+import { SiteHeader } from "./components/SiteHeader";
+import { SiteFooter } from "./components/SiteFooter";
+import Landing from "./pages/Landing";
 
-const Catalog = lazy(() => import("./pages/Catalog"));
-const About = lazy(() => import("./pages/About"));
+const CatalogPage = lazy(() => import("./pages/CatalogPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
 const RenderCar = lazy(() => import("./pages/RenderCar"));
 
 export default function App() {
   const { pathname } = useLocation();
-  // internal page used only to render catalog thumbnails from the 3D model
+  // internal page used only to render the site's still images from the 3D model
   if (pathname === "/__render") {
     return (
       <Suspense fallback={null}>
@@ -22,18 +22,18 @@ export default function App() {
   return (
     <SmoothScroll>
       <a className="skip" href="#main">דלג לתוכן</a>
-      <Header />
+      <SiteHeader />
       <main id="main">
         <Suspense fallback={<div className="page-loading" />}>
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/catalog" element={<Catalog />} />
-            <Route path="/about" element={<About />} />
-            <Route path="*" element={<Home />} />
+            <Route path="/" element={<Landing />} />
+            <Route path="/catalog" element={<CatalogPage />} />
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="*" element={<Landing />} />
           </Routes>
         </Suspense>
       </main>
-      <Footer />
+      <SiteFooter />
     </SmoothScroll>
   );
 }

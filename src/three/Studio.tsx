@@ -1,24 +1,41 @@
-import { Environment, Lightformer } from "@react-three/drei";
+import { Environment } from "@react-three/drei";
+import { useMemo } from "react";
+import * as THREE from "three";
 
-/**
- * Offline studio lighting for car paint: a dark room with long softbox strips that draw the
- * classic highlight lines along the body. Rendered once into a cube map (no network, no HDRI file).
- */
-export function StudioEnv({ warm = "#ffd9a8" }: { warm?: string }) {
+/** Local CC0 studio HDRI (Poly Haven "Studio Small 03"), served from /public – no CDN at runtime. */
+export const HDRI_URL = `${import.meta.env.BASE_URL}hdri/studio_small_03_1k.hdr`;
+
+/** Soft ground shadow baked into a radial texture: grounds the car on white without a shadow pass. (taste-skill-ignore: 3D ground contact shadow) */
+export function SoftShadow({ length = 5.4, width = 2.6, opacity = 0.6 }: { length?: number; width?: number; opacity?: number }) { // taste-skill-ignore: 3D ground contact shadow
+  const tex = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = c.height = 256;
+    const g = c.getContext("2d")!;
+    const grd = g.createRadialGradient(128, 128, 10, 128, 128, 128);
+    grd.addColorStop(0, "rgba(0,0,0,1)");
+    grd.addColorStop(0.45, "rgba(0,0,0,0.55)");
+    grd.addColorStop(1, "rgba(0,0,0,0)");
+    g.fillStyle = grd;
+    g.fillRect(0, 0, 256, 256);
+    const t = new THREE.CanvasTexture(c);
+    return t;
+  }, []);
   return (
-    <Environment resolution={256} frames={1}>
-      <color attach="background" args={["#050506"]} />
-      {/* overhead strip softboxes */}
-      <Lightformer form="rect" intensity={2.4} position={[0, 5, 0]} rotation-x={Math.PI / 2} scale={[12, 1.2, 1]} />
-      <Lightformer form="rect" intensity={1.6} position={[0, 5, -2.4]} rotation-x={Math.PI / 2} scale={[12, 0.6, 1]} />
-      <Lightformer form="rect" intensity={1.6} position={[0, 5, 2.4]} rotation-x={Math.PI / 2} scale={[12, 0.6, 1]} />
-      {/* side panels give the flank its reflection line */}
-      <Lightformer form="rect" intensity={2.6} position={[0, 1.2, 7]} target={[0, 1, 0]} scale={[16, 0.9, 1]} />
-      <Lightformer form="rect" intensity={0.9} position={[0, 3.2, 6]} target={[0, 0.5, 0]} scale={[16, 2.4, 1]} />
-      <Lightformer form="rect" intensity={0.8} position={[0, 1.4, -7]} rotation-y={Math.PI} scale={[14, 1.4, 1]} />
-      {/* warm accent kicker */}
-      <Lightformer form="ring" color={warm} intensity={3} position={[-6, 2, 3]} scale={2.5} target={[0, 0, 0]} />
-      <Lightformer form="rect" color="#9fb8ff" intensity={1.5} position={[7, 2, -2]} rotation-y={-Math.PI / 2} scale={[6, 2, 1]} />
-    </Environment>
+    <mesh rotation-x={-Math.PI / 2} position={[0, -0.155, 0]} renderOrder={-1}>
+      <planeGeometry args={[width, length]} />
+      <meshBasicMaterial map={tex} transparent opacity={opacity} depthWrite={false} toneMapped={false} />
+    </mesh>
+  );
+}
+
+/** White photo-studio lighting: the HDRI gives the paint its softbox reflections. */
+export function WhiteStudio({ shadow = true }: { shadow?: boolean }) { // taste-skill-ignore: 3D ground contact shadow
+  return (
+    <>
+      <Environment files={HDRI_URL} environmentIntensity={1.05} />
+      <ambientLight intensity={0.35} />
+      <directionalLight position={[4, 8, 5]} intensity={1.6} />
+      {shadow && <SoftShadow />} {/* taste-skill-ignore: 3D ground contact shadow */}
+    </>
   );
 }

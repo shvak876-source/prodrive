@@ -33,9 +33,10 @@ export function SplitReveal({ children, as: Tag = "h2", className, delay = 0, im
             gsap.set(el, { autoAlpha: 1 });
             return gsap.from(self.words, {
               yPercent: 110,
-              duration: DUR.slow,
+              // above-the-fold titles land fast so the page's title is readable almost at once
+              duration: immediate ? 0.8 : DUR.slow,
               ease: EASE.out,
-              stagger: STAGGER.base, // 80ms between words
+              stagger: immediate ? STAGGER.tight : STAGGER.base, // 40–80ms between words
               delay,
               scrollTrigger: immediate ? undefined : { trigger: el, start: "top 85%", once: true },
             });
@@ -47,7 +48,7 @@ export function SplitReveal({ children, as: Tag = "h2", className, delay = 0, im
     { scope: ref },
   );
   return (
-    <Tag ref={ref} className={className} style={reducedMotion() ? undefined : { visibility: "hidden" }}>
+    <Tag ref={ref} className={className} style={reducedMotion() || immediate ? undefined : { visibility: "hidden" }}>
       {children}
     </Tag>
   );
