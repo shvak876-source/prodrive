@@ -6,19 +6,22 @@ import { Button, Tag, img } from "../components/ui";
 import { PAINTS, type PaintId } from "../three/paints";
 import { HERO_START, hero } from "../three/heroState";
 import { DUR, EASE, ScrollTrigger, gsap, reducedMotion, useGSAP } from "../motion/gsap";
-import { SplitReveal } from "../motion/primitives";
 import { ScrollFrames, useFrameSet, type ScrollFramesHandle } from "../components/ScrollFrames";
 
-const RoadStage = lazy(() => import("../three/RoadStage"));
+const RoadHero = lazy(() => import("../three/RoadHero"));
+
+const TITLE = "מוצאים לך רכב. מהר.";
+const SUB = "תיווך רכב שעובד רק בשבילך";
 
 /* ====================================================================== hero + catalog */
 
 /**
- * One pinned scene, ~4 screens of scroll:
- *   0.0–1.4  the copy steps aside, the scissor doors swing up, the camera moves toward the open door
- *   1.4–2.2  the doors drop, the catalog panel rises from the road and the car rides up above it
- *   2.2–6.0  the catalog cards slide past (scroll moves them sideways, 1:1)
- * The road keeps streaming the whole time, so the car is never parked.
+ * The landing page is a road: asphalt across the screen, the headline painted on it, the car on
+ * it in profile facing right (~70% of the width). Pinned scroll:
+ *   0.0–1.1  the scissor doors swing up while the camera walks toward the open door
+ *   1.1–2.2  the camera goes in through the door and settles in the seat, looking out
+ *   2.2–…    the catalog rises over the cabin view and its cards slide past with the scroll
+ * With real footage in public/frames the same story plays from the video instead.
  */
 function HeroCatalog() {
   const root = useRef<HTMLElement>(null);
@@ -26,7 +29,6 @@ function HeroCatalog() {
   const [paint, setPaint] = useState<PaintId>("carmine");
   const [ready, setReady] = useState(false);
   const cars = CARS.slice(0, 6);
-  // real footage when public/frames/manifest.json exists, otherwise the 3D road scene
   const frames = useFrameSet();
   const film = useRef<ScrollFramesHandle>(null);
 
@@ -34,102 +36,81 @@ function HeroCatalog() {
     () => {
       if (frames === undefined) return; // still checking for footage
       Object.assign(hero, HERO_START);
-      if (reducedMotion()) {
-        hero.cruise = 0;
-        return;
-      }
+      if (reducedMotion()) return;
       gsap.set(".cat-panel", { yPercent: 102 });
       const t = track.current!;
+      // RTL: the card row overflows to the left, so it travels right to show its last card
       const travel = () => Math.max(0, t.scrollWidth - t.clientWidth);
+      const clip = { p: 0 };
 
-      if (frames) {
-        // FOOTAGE: the clip plays with the scroll – car on the track, the door opens, the camera
-        // goes in through it – then the catalog rises over the last (interior) frame.
-        gsap.from(".hero-copy > *:not(h1)", { x: -80, autoAlpha: 0, duration: 0.8, ease: EASE.out, stagger: 0.07, delay: 0.3 });
-        const clip = { p: 0 };
-        const tl = gsap.timeline({
-          defaults: { ease: "none" },
-          scrollTrigger: { trigger: root.current, start: "top top", end: () => `+=${window.innerHeight * 3.2 + travel()}`, pin: true, scrub: true, invalidateOnRefresh: true },
-        });
-        tl.to(clip, { p: 1, duration: 3, onUpdate: () => film.current?.seek(clip.p) }, 0)
-          .to(".hero-copy", { x: 120, autoAlpha: 0, duration: 0.5, ease: "power2.in" }, 0.25)
-          .fromTo(".door-copy", { x: -100, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.4, ease: "power3.out" }, 0.6)
-          .to(".door-copy", { x: 100, autoAlpha: 0, duration: 0.35, ease: "power2.in" }, 1.25)
-          .to(".hero-side", { xPercent: 105, duration: 0.5, ease: "power2.in" }, 1.3)
-          .to(".cat-panel", { yPercent: 0, duration: 0.7, ease: "power3.out" }, 3.0)
-          .from(".rc-card", { y: 80, autoAlpha: 0, stagger: 0.06, duration: 0.5, ease: "power3.out" }, 3.3)
-          .to(t, { x: () => travel(), duration: 3.4 }, 3.8)
-          .to(".hero-progress i", { scaleX: 1, duration: 7.2 }, 0);
-        return;
+      if (!frames) {
+        // arrival: the car drives in from the left and pulls up on its mark
+        hero.enter = 14;
+        gsap.to(hero, { enter: 0, duration: 2.2, ease: "expo.out", delay: 0.2 });
       }
-      // arrival: the car rolls onto its mark, the copy follows a beat later
-      hero.enter = 14;
-      gsap.to(hero, { enter: 0, duration: 2, ease: "expo.out", delay: 0.2 });
-      gsap.from(".hero-copy > *:not(h1)", { x: -80, autoAlpha: 0, duration: 0.8, ease: EASE.out, stagger: 0.07, delay: 0.6 });
+      gsap.from(".hero-ui > *", { y: 30, autoAlpha: 0, duration: 0.8, ease: EASE.out, stagger: 0.08, delay: 1.2 });
 
-      // 3D fallback (no footage yet)
       const tl = gsap.timeline({
         defaults: { ease: "none" },
-        scrollTrigger: { trigger: root.current, start: "top top", end: () => `+=${window.innerHeight * 2.2 + travel()}`, pin: true, scrub: true, invalidateOnRefresh: true },
+        scrollTrigger: { trigger: root.current, start: "top top", end: () => `+=${window.innerHeight * 2.8 + travel()}`, pin: true, scrub: true, invalidateOnRefresh: true },
       });
-      tl.to(".hero-copy", { x: 120, autoAlpha: 0, duration: 0.6, ease: "power2.in" }, 0)
-        .to(hero, { doors: 1, zoom: 1, lights: 1, cruise: 0.6, duration: 1.1, ease: "power2.inOut" }, 0.15)
-        .fromTo(".door-copy", { x: -100, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.5, ease: "power3.out" }, 0.55)
-        .to(".door-copy", { x: 100, autoAlpha: 0, duration: 0.4, ease: "power2.in" }, 1.3)
-        .to(hero, { doors: 0, zoom: 0.15, panel: 1, cruise: 3, duration: 0.8, ease: "power2.inOut" }, 1.35)
-        .to(".cat-panel", { yPercent: 0, duration: 0.8, ease: "power3.out" }, 1.4)
-        .to(".hero-side", { xPercent: 105, duration: 0.6, ease: "power2.in" }, 1.3)
-        .from(".rc-card", { y: 80, autoAlpha: 0, stagger: 0.06, duration: 0.5, ease: "power3.out" }, 1.75)
-        .to(t, { x: () => travel(), duration: 3.6 }, 2.3)
-        .to(".hero-progress i", { scaleX: 1, duration: 5.9 }, 0);
+      if (frames) tl.to(clip, { p: 1, duration: 2.2, onUpdate: () => film.current?.seek(clip.p) }, 0);
+      else
+        tl.to(hero, { doors: 1, lights: 1, duration: 0.8, ease: "power2.inOut" }, 0.15)
+          .to(hero, { cam: 0.45, duration: 1.0, ease: "power1.inOut" }, 0.1)
+          .to(hero, { cam: 1, duration: 1.1, ease: "power2.inOut" }, 1.1);
+      tl.to(".hero-ui", { y: 40, autoAlpha: 0, duration: 0.35, ease: "power2.in" }, 0.05)
+        .fromTo(".door-copy", { y: 40, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.35, ease: "power3.out" }, 0.75)
+        .to(".door-copy", { y: -40, autoAlpha: 0, duration: 0.3, ease: "power2.in" }, 1.75)
+        .to(".cat-panel", { yPercent: 0, duration: 0.7, ease: "power3.out" }, 2.2)
+        .from(".rc-card", { y: 80, autoAlpha: 0, stagger: 0.06, duration: 0.5, ease: "power3.out" }, 2.5)
+        .to(t, { x: () => travel(), duration: 3.2 }, 3.0)
+        .to(".hero-progress i", { scaleX: 1, duration: 6.2 }, 0);
     },
     { scope: root, dependencies: [frames] },
   );
 
   return (
-    <section className={`hero ${frames ? "is-film" : ""}`} ref={root} aria-label="Pro Drive – תיווך רכב">
+    <section className="hero" ref={root} aria-labelledby="hero-h">
       {frames ? (
         <ScrollFrames ref={film} set={frames} className="hero-film" onFirstFrame={() => setReady(true)} />
       ) : frames === null ? (
         <Suspense fallback={<div className="hero-canvas" />}>
-          <RoadStage paint={paint} onReady={() => setReady(true)} />
+          <RoadHero paint={paint} title={TITLE} sub={SUB} onReady={() => setReady(true)} />
         </Suspense>
       ) : null}
-      <div className={`stage-loader ${ready ? "is-done" : ""}`} aria-hidden="true">
-        <i />
-      </div>
+      <div className={`stage-loader ${ready ? "is-done" : ""}`} aria-hidden="true"><i /></div>
 
-      {/* light panel the copy sits on, leaning with the page's slant */}
-      <div className="hero-side" aria-hidden="true" />
-      <div className="hero-copy">
-        <SplitReveal as="h1" className="hero-title" immediate>
-          מוצאים לך רכב. מהר.
-        </SplitReveal>
-        <p className="hero-lead">Pro Drive הוא תיווך רכב שעובד רק בשבילך: מאתרים, בודקים ומתמקחים – ואתה מגיע רק לקחת מפתח.</p>
+      {/* the headline is painted on the road in 3D; this is the same text for search engines and screen readers */}
+      <h1 id="hero-h" className="sr-only">{TITLE} Pro Drive – {SUB}.</h1>
+
+      <div className="hero-ui">
+        <p className="sr-only">מאתרים, בודקים ומתמקחים על הרכב הבא שלך – ואתה מגיע רק לקחת מפתח.</p>
         <div className="hero-actions">
-          <Button href={waLink("היי, אני מחפש רכב ואשמח לשיחה")} size="lg">
+          <Button href={waLink("היי, אני מחפש רכב ואשמח לשיחה")} size="lg" tone="accent">
             ספרו לי מה אתם מחפשים
           </Button>
-          <a className="text-link" href="#about">מי אני</a>
+          {!frames && (
+            <div className="swatches" role="radiogroup" aria-label="צבע הרכב">
+              {(Object.keys(PAINTS) as PaintId[]).map((id) => (
+                <button
+                  key={id}
+                  role="radio"
+                  aria-checked={paint === id}
+                  aria-label={PAINTS[id].label}
+                  className={`swatch ${paint === id ? "is-on" : ""}`}
+                  style={{ ["--c" as string]: PAINTS[id].color }}
+                  onClick={() => setPaint(id)}
+                />
+              ))}
+            </div>
+          )}
         </div>
-        {!frames && <div className="swatches" role="radiogroup" aria-label="צבע הרכב">
-          {(Object.keys(PAINTS) as PaintId[]).map((id) => (
-            <button
-              key={id}
-              role="radio"
-              aria-checked={paint === id}
-              aria-label={PAINTS[id].label}
-              className={`swatch ${paint === id ? "is-on" : ""}`}
-              style={{ ["--c" as string]: PAINTS[id].color }}
-              onClick={() => setPaint(id)}
-            />
-          ))}
-        </div>}
       </div>
 
       <div className="door-copy">
-        <h2>פותחים כל דלת.</h2>
-        <p>היסטוריה, תאונות, קילומטראז׳ אמיתי ובדיקה במכון – לפני שאתה בכלל רואה את הרכב.</p>
+        <h2>נכנסים פנימה.</h2>
+        <p>כל רכב נבדק מבפנים ומבחוץ – היסטוריה, תאונות, קילומטראז׳ ומכון.</p>
       </div>
 
       <div className="cat-panel" id="cars">

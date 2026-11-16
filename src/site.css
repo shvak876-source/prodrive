@@ -7,7 +7,7 @@
 :root {
   --bg: #ebebe8;
   --stage: #e6e6e3;
-  --sky: #d9dde0; /* hero haze; matches HAZE in RoadStage */
+  --sky: #cfd3d6; /* hero haze; matches HAZE in RoadHero */
   --surface: #f4f4f2;
   --surface-2: #dddcd8;
   --ink: #121212;
@@ -119,27 +119,22 @@ p { margin: 0; }
 .hero { position: relative; height: 100svh; min-height: 640px; overflow: hidden; background: var(--sky); }
 .hero-canvas { position: absolute; inset: 0; animation: fadeIn 0.9s both; }
 .hero-film { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.hero-copy, .door-copy {
-  position: absolute; top: 0; bottom: 0; right: var(--m); width: min(37vw, 560px);
-  display: flex; flex-direction: column; justify-content: center; padding-top: 70px;
-}
-.hero-title { font-size: clamp(4.5rem, 1.6rem + 6vw, 9.5rem); line-height: 0.82; }
-.hero-lead { margin-top: 30px; font-size: var(--step-lead); line-height: 1.4; max-width: 30ch; }
-.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 26px; margin-top: 36px; }
-.swatches { display: flex; gap: 10px; margin-top: 40px; }
+/* overlay on the road: lead + action, bottom-right; the headline itself is painted on the asphalt */
+.hero-ui { position: absolute; right: var(--m); bottom: clamp(28px, 5vh, 56px); display: flex; flex-direction: column; align-items: flex-end; gap: 18px; text-align: right; }
+.hero-lead { font-size: var(--step-lead); line-height: 1.35; max-width: 34ch; color: #fff; font-weight: 500; background: rgba(18, 18, 18, 0.55); padding: 10px 16px; clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; justify-content: flex-end; }
+.swatches { display: flex; gap: 8px; background: rgba(18, 18, 18, 0.55); padding: 10px 14px; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
 .swatch { width: 40px; height: 24px; border: 0; cursor: pointer; background: var(--c); clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); transition: transform 0.25s var(--ease-out); position: relative; }
 .swatch::after { content: ""; position: absolute; inset: auto 0 0 0; height: 4px; background: var(--accent); transform: scaleX(0); transition: transform 0.3s var(--ease-out); }
 .swatch:hover { transform: translateY(-3px); }
 .swatch.is-on::after { transform: scaleX(1); }
-.door-copy { visibility: hidden; }
+.door-copy { position: absolute; right: var(--m); bottom: clamp(28px, 6vh, 64px); max-width: 520px; visibility: hidden; background: var(--bg); padding: 26px 30px 30px; clip-path: polygon(18px 0, 100% 0, calc(100% - 18px) 100%, 0 100%); }
+.door-copy h2 { font-family: var(--display); font-size: clamp(3.5rem, 1.6rem + 4.4vw, 7rem); line-height: 0.85; transform: skewX(var(--lean)); transform-origin: bottom; }
+.door-copy p { margin-top: 14px; font-size: var(--step-lead); line-height: 1.4; }
 /* while the car and sky load: a red bar racing across the stage */
-.stage-loader { position: absolute; left: 6%; right: 52%; top: 58%; height: 3px; background: rgba(18, 18, 18, 0.1); overflow: hidden; transition: opacity 0.4s; }
+.stage-loader { position: absolute; left: 20%; right: 20%; top: 50%; height: 3px; background: rgba(18, 18, 18, 0.12); overflow: hidden; transition: opacity 0.4s; }
 .stage-loader i { position: absolute; inset: 0; width: 30%; background: var(--accent); animation: loader 1s cubic-bezier(0.6, 0, 0.4, 1) infinite; }
 .stage-loader.is-done { opacity: 0; pointer-events: none; }
-@media (max-width: 900px) { .stage-loader { right: 6%; top: 28%; } }
-.hero-side { position: absolute; top: 0; bottom: 0; right: 0; width: calc(min(37vw, 560px) + var(--m) * 2 + 60px); background: var(--bg); clip-path: polygon(110px 0, 100% 0, 100% 100%, 0 100%); }
-.door-copy h2 { font-family: var(--display); font-size: clamp(4rem, 1.8rem + 6vw, 9rem); line-height: 0.82; transform: skewX(var(--lean)); transform-origin: bottom; }
-.door-copy p { margin-top: 24px; font-size: var(--step-lead); line-height: 1.4; max-width: 28ch; }
 
 .cat-panel {
   position: absolute; inset: auto 0 0 0; height: 58%; background: var(--bg);
@@ -168,15 +163,14 @@ p { margin: 0; }
 .hero-progress { position: absolute; inset: auto 0 0 0; height: 4px; z-index: 2; }
 .hero-progress i { position: absolute; inset: 0; background: var(--accent); transform: scaleX(0); transform-origin: right; }
 @media (max-width: 900px) {
-  .hero-copy, .door-copy { left: var(--m); width: auto; justify-content: flex-end; padding: 0 0 44px; }
-  .hero-title { font-size: clamp(4rem, 17vw, 6rem); }
-  .hero-lead, .door-copy p { margin-top: 14px; font-size: 18px; }
-  .hero-actions { margin-top: 18px; gap: 18px; }
+  .hero-ui { left: var(--m); align-items: stretch; }
+  .hero-lead { font-size: 17px; }
+  .hero-actions { justify-content: space-between; }
   .btn-lg { --h: 56px; font-size: 16px; }
-  .swatches { margin-top: 18px; }
-  .door-copy h2 { font-size: 18vw; }
+  .door-copy { left: var(--m); max-width: none; padding: 18px 22px 22px; }
+  .door-copy h2 { font-size: 16vw; }
+  .door-copy p { font-size: 17px; }
   .cat-panel { height: 66%; padding-top: 56px; clip-path: polygon(0 32px, 100% 0, 100% 100%, 0 100%); }
-  .hero-side { width: 100%; top: 46%; clip-path: polygon(0 40px, 100% 0, 100% 100%, 0 100%); }
   .cat-panel-head p { display: none; }
   .rc-card { flex-basis: 74vw; }
 }
