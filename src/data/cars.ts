@@ -26,7 +26,7 @@ export interface Car {
   highlights: string[];
 }
 
-const car = (c: Omit<Car, "image">): Car => ({ ...c, image: `/cars/${c.id}.png` });
+const car = (c: Omit<Car, "image">): Car => ({ ...c, image: `${import.meta.env.BASE_URL}cars/${c.id}.png` });
 
 export const CARS: Car[] = [
   car({ id: "aurex-gt", make: "Aurex", model: "GT Line", year: 2026, category: "קופה", body: "coupe", fuel: "בנזין", condition: "חדש", km: 0, hp: 420, accel: 3.9, gearbox: "אוטומטי 8", price: 489000, color: "#8f1d1d", colorName: "אדום רובי", highlights: ["מושבי ספורט מאווררים", "מערכת שמע 14 רמקולים", "בלמי קרמיקה"] }),
