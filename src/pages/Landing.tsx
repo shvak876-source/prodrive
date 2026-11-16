@@ -7,6 +7,7 @@ import { PAINTS, type PaintId } from "../three/paints";
 import { HERO_START, hero } from "../three/heroState";
 import { DUR, EASE, ScrollTrigger, gsap, reducedMotion, useGSAP } from "../motion/gsap";
 import { SplitReveal } from "../motion/primitives";
+import { ScrollFrames, useFrameSet, type ScrollFramesHandle } from "../components/ScrollFrames";
 
 const RoadStage = lazy(() => import("../three/RoadStage"));
 
@@ -25,12 +26,40 @@ function HeroCatalog() {
   const [paint, setPaint] = useState<PaintId>("carmine");
   const [ready, setReady] = useState(false);
   const cars = CARS.slice(0, 6);
+  // real footage when public/frames/manifest.json exists, otherwise the 3D road scene
+  const frames = useFrameSet();
+  const film = useRef<ScrollFramesHandle>(null);
 
   useGSAP(
     () => {
+      if (frames === undefined) return; // still checking for footage
       Object.assign(hero, HERO_START);
       if (reducedMotion()) {
         hero.cruise = 0;
+        return;
+      }
+      gsap.set(".cat-panel", { yPercent: 102 });
+      const t = track.current!;
+      const travel = () => Math.max(0, t.scrollWidth - t.clientWidth);
+
+      if (frames) {
+        // FOOTAGE: the clip plays with the scroll – car on the track, the door opens, the camera
+        // goes in through it – then the catalog rises over the last (interior) frame.
+        gsap.from(".hero-copy > *:not(h1)", { x: -80, autoAlpha: 0, duration: 0.8, ease: EASE.out, stagger: 0.07, delay: 0.3 });
+        const clip = { p: 0 };
+        const tl = gsap.timeline({
+          defaults: { ease: "none" },
+          scrollTrigger: { trigger: root.current, start: "top top", end: () => `+=${window.innerHeight * 3.2 + travel()}`, pin: true, scrub: true, invalidateOnRefresh: true },
+        });
+        tl.to(clip, { p: 1, duration: 3, onUpdate: () => film.current?.seek(clip.p) }, 0)
+          .to(".hero-copy", { x: 120, autoAlpha: 0, duration: 0.5, ease: "power2.in" }, 0.25)
+          .fromTo(".door-copy", { x: -100, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.4, ease: "power3.out" }, 0.6)
+          .to(".door-copy", { x: 100, autoAlpha: 0, duration: 0.35, ease: "power2.in" }, 1.25)
+          .to(".hero-side", { xPercent: 105, duration: 0.5, ease: "power2.in" }, 1.3)
+          .to(".cat-panel", { yPercent: 0, duration: 0.7, ease: "power3.out" }, 3.0)
+          .from(".rc-card", { y: 80, autoAlpha: 0, stagger: 0.06, duration: 0.5, ease: "power3.out" }, 3.3)
+          .to(t, { x: () => travel(), duration: 3.4 }, 3.8)
+          .to(".hero-progress i", { scaleX: 1, duration: 7.2 }, 0);
         return;
       }
       // arrival: the car rolls onto its mark, the copy follows a beat later
@@ -38,10 +67,7 @@ function HeroCatalog() {
       gsap.to(hero, { enter: 0, duration: 2, ease: "expo.out", delay: 0.2 });
       gsap.from(".hero-copy > *:not(h1)", { x: -80, autoAlpha: 0, duration: 0.8, ease: EASE.out, stagger: 0.07, delay: 0.6 });
 
-      gsap.set(".cat-panel", { yPercent: 102 });
-      const t = track.current!;
-      // how far the card row must travel to show its last card (RTL: overflow is to the left, so it moves right)
-      const travel = () => Math.max(0, t.scrollWidth - t.clientWidth);
+      // 3D fallback (no footage yet)
       const tl = gsap.timeline({
         defaults: { ease: "none" },
         scrollTrigger: { trigger: root.current, start: "top top", end: () => `+=${window.innerHeight * 2.2 + travel()}`, pin: true, scrub: true, invalidateOnRefresh: true },
@@ -57,14 +83,18 @@ function HeroCatalog() {
         .to(t, { x: () => travel(), duration: 3.6 }, 2.3)
         .to(".hero-progress i", { scaleX: 1, duration: 5.9 }, 0);
     },
-    { scope: root },
+    { scope: root, dependencies: [frames] },
   );
 
   return (
-    <section className="hero" ref={root} aria-label="Pro Drive – תיווך רכב">
-      <Suspense fallback={<div className="hero-canvas" />}>
-        <RoadStage paint={paint} onReady={() => setReady(true)} />
-      </Suspense>
+    <section className={`hero ${frames ? "is-film" : ""}`} ref={root} aria-label="Pro Drive – תיווך רכב">
+      {frames ? (
+        <ScrollFrames ref={film} set={frames} className="hero-film" onFirstFrame={() => setReady(true)} />
+      ) : frames === null ? (
+        <Suspense fallback={<div className="hero-canvas" />}>
+          <RoadStage paint={paint} onReady={() => setReady(true)} />
+        </Suspense>
+      ) : null}
       <div className={`stage-loader ${ready ? "is-done" : ""}`} aria-hidden="true">
         <i />
       </div>
@@ -82,7 +112,7 @@ function HeroCatalog() {
           </Button>
           <a className="text-link" href="#about">מי אני</a>
         </div>
-        <div className="swatches" role="radiogroup" aria-label="צבע הרכב">
+        {!frames && <div className="swatches" role="radiogroup" aria-label="צבע הרכב">
           {(Object.keys(PAINTS) as PaintId[]).map((id) => (
             <button
               key={id}
@@ -94,7 +124,7 @@ function HeroCatalog() {
               onClick={() => setPaint(id)}
             />
           ))}
-        </div>
+        </div>}
       </div>
 
       <div className="door-copy">

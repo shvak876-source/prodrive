@@ -118,6 +118,7 @@ p { margin: 0; }
 /* ================================================================== hero (road) + catalog panel */
 .hero { position: relative; height: 100svh; min-height: 640px; overflow: hidden; background: var(--sky); }
 .hero-canvas { position: absolute; inset: 0; animation: fadeIn 0.9s both; }
+.hero-film { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 .hero-copy, .door-copy {
   position: absolute; top: 0; bottom: 0; right: var(--m); width: min(37vw, 560px);
   display: flex; flex-direction: column; justify-content: center; padding-top: 70px;
