@@ -8,85 +8,75 @@ import { HERO_START, hero } from "../three/heroState";
 import { DUR, EASE, ScrollTrigger, gsap, reducedMotion, useGSAP } from "../motion/gsap";
 import { SplitReveal } from "../motion/primitives";
 
-const HeroStage = lazy(() => import("../three/HeroStage"));
+const RoadStage = lazy(() => import("../three/RoadStage"));
 
-/* ====================================================================== hero */
+/* ====================================================================== hero + catalog */
 
 /**
- * Text on the right, the car on the left. The section holds for ~2 screens of scroll:
- *   0.00–0.45  the car spins its wheels in place, the floor streams, it turns to a side profile
- *   0.45–1.00  lights on, it launches out of frame to the left
- * The speed lines over the stage follow the car's speed (and the visitor's scroll speed).
+ * One pinned scene, ~4 screens of scroll:
+ *   0.0–1.4  the copy steps aside, the scissor doors swing up, the camera moves toward the open door
+ *   1.4–2.2  the doors drop, the catalog panel rises from the road and the car rides up above it
+ *   2.2–6.0  the catalog cards slide past (scroll moves them sideways, 1:1)
+ * The road keeps streaming the whole time, so the car is never parked.
  */
-function Hero() {
+function HeroCatalog() {
   const root = useRef<HTMLElement>(null);
+  const track = useRef<HTMLDivElement>(null);
   const [paint, setPaint] = useState<PaintId>("carmine");
+  const cars = CARS.slice(0, 6);
 
   useGSAP(
     () => {
       Object.assign(hero, HERO_START);
-      const rm = reducedMotion();
-      const speed = gsap.quickSetter(root.current, "--speed");
-      if (rm) return;
+      if (reducedMotion()) {
+        hero.cruise = 0;
+        return;
+      }
+      // arrival: the car rolls onto its mark, the copy follows a beat later
+      hero.enter = 14;
+      gsap.to(hero, { enter: 0, duration: 2, ease: "expo.out", delay: 0.2 });
+      gsap.from(".hero-copy > *:not(h1)", { x: -80, autoAlpha: 0, duration: 0.8, ease: EASE.out, stagger: 0.07, delay: 0.6 });
 
-      // arrival: the car drives onto its mark from the right, wheels turning, then settles
-      hero.enter = 9;
-      gsap.to(hero, { enter: 0, duration: 1.6, ease: "expo.out", delay: 0.25 });
-      gsap.from(".hero-copy > *:not(h1)", { x: -80, autoAlpha: 0, duration: 0.8, ease: EASE.out, stagger: 0.07, delay: 0.5 });
-
-      const state = { s: 0 };
+      gsap.set(".cat-panel", { yPercent: 102 });
+      const t = track.current!;
+      // how far the card row must travel to show its last card (RTL: overflow is to the left, so it moves right)
+      const travel = () => Math.max(0, t.scrollWidth - t.clientWidth);
       const tl = gsap.timeline({
         defaults: { ease: "none" },
-        scrollTrigger: {
-          trigger: root.current,
-          start: "top top",
-          end: "+=190%",
-          pin: true,
-          scrub: true,
-          onUpdate: (self) => {
-            // speed lines: the story's own speed plus a kick from how fast the visitor scrolls
-            const kick = Math.min(1, Math.abs(self.getVelocity()) / 4000);
-            speed(Math.min(1, state.s + kick * 0.5));
-          },
-        },
+        scrollTrigger: { trigger: root.current, start: "top top", end: () => `+=${window.innerHeight * 2.2 + travel()}`, pin: true, scrub: true, invalidateOnRefresh: true },
       });
-      tl.to(hero, { road: 26, duration: 4.5, ease: "power2.in" }, 0)
-        .to(state, { s: 0.75, duration: 4.5, ease: "power2.in" }, 0)
-        .to(hero, { yaw: -Math.PI / 2, zoom: 0.15, pan: 0.9, duration: 3, ease: "sine.inOut" }, 0.5)
-        .to(".hero-copy", { x: 160, autoAlpha: 0, duration: 1.6, ease: "power2.in" }, 0.6)
-        .fromTo(".hero-second", { x: -140, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 1.4, ease: "power3.out" }, 2.1)
-        .to(hero, { lights: 1, duration: 0.6 }, 4.2)
-        .to(hero, { drive: 24, zoom: 0, duration: 3.6, ease: "power3.in" }, 4.6)
-        .to(state, { s: 1, duration: 1.6 }, 4.6)
-        .to(".hero-second", { x: 200, autoAlpha: 0, duration: 1.2, ease: "power2.in" }, 7.4)
-        .to(".hero-progress i", { scaleX: 1, duration: 8.6 }, 0);
+      tl.to(".hero-copy", { x: 120, autoAlpha: 0, duration: 0.6, ease: "power2.in" }, 0)
+        .to(hero, { doors: 1, zoom: 1, lights: 1, cruise: 0.6, duration: 1.1, ease: "power2.inOut" }, 0.15)
+        .fromTo(".door-copy", { x: -100, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 0.5, ease: "power3.out" }, 0.55)
+        .to(".door-copy", { x: 100, autoAlpha: 0, duration: 0.4, ease: "power2.in" }, 1.3)
+        .to(hero, { doors: 0, zoom: 0.15, panel: 1, cruise: 3, duration: 0.8, ease: "power2.inOut" }, 1.35)
+        .to(".cat-panel", { yPercent: 0, duration: 0.8, ease: "power3.out" }, 1.4)
+        .to(".hero-side", { xPercent: 105, duration: 0.6, ease: "power2.in" }, 1.3)
+        .from(".rc-card", { y: 80, autoAlpha: 0, stagger: 0.06, duration: 0.5, ease: "power3.out" }, 1.75)
+        .to(t, { x: () => travel(), duration: 3.6 }, 2.3)
+        .to(".hero-progress i", { scaleX: 1, duration: 5.9 }, 0);
     },
     { scope: root },
   );
 
   return (
-    <section className="hero" ref={root} aria-label="Pro Drive">
+    <section className="hero" ref={root} aria-label="Pro Drive – תיווך רכב">
       <Suspense fallback={<div className="hero-canvas" />}>
-        <HeroStage paint={paint} />
+        <RoadStage paint={paint} />
       </Suspense>
-      <div className="speed-lines" aria-hidden="true">
-        {Array.from({ length: 16 }, (_, i) => (
-          <i key={i} style={{ ["--y" as string]: `${8 + ((i * 37) % 84)}%`, ["--d" as string]: `${0.5 + ((i * 13) % 7) / 10}s`, ["--w" as string]: `${18 + ((i * 29) % 30)}%` }} />
-        ))}
-      </div>
 
+      {/* light panel the copy sits on, leaning with the page's slant */}
+      <div className="hero-side" aria-hidden="true" />
       <div className="hero-copy">
         <SplitReveal as="h1" className="hero-title" immediate>
           מוצאים לך רכב. מהר.
         </SplitReveal>
-        <p className="hero-lead">
-          Pro Drive הוא תיווך רכב שעובד רק בשבילך: מאתרים, בודקים ומתמקחים – ואתה מגיע רק לקחת מפתח.
-        </p>
+        <p className="hero-lead">Pro Drive הוא תיווך רכב שעובד רק בשבילך: מאתרים, בודקים ומתמקחים – ואתה מגיע רק לקחת מפתח.</p>
         <div className="hero-actions">
           <Button href={waLink("היי, אני מחפש רכב ואשמח לשיחה")} size="lg">
             ספרו לי מה אתם מחפשים
           </Button>
-          <a className="text-link" href="#cars">לרכבים שבדקנו</a>
+          <a className="text-link" href="#about">מי אני</a>
         </div>
         <div className="swatches" role="radiogroup" aria-label="צבע הרכב">
           {(Object.keys(PAINTS) as PaintId[]).map((id) => (
@@ -103,13 +93,39 @@ function Hero() {
         </div>
       </div>
 
-      <div className="hero-second">
-        <h2>שלושה רכבים מתאימים. שבוע אחד.</h2>
-        <ul className="hero-facts">
-          <li><b>0 ₪</b><span>עמלות ממוכרים – אני עובד רק בשבילך</span></li>
-          <li><b>120</b><span>נקודות בדיקה לכל רכב לפני שאתה רואה אותו</span></li>
-          <li><b>1</b><span>טלפון אישי, מהשיחה הראשונה ועד המסירה</span></li>
-        </ul>
+      <div className="door-copy">
+        <h2>פותחים כל דלת.</h2>
+        <p>היסטוריה, תאונות, קילומטראז׳ אמיתי ובדיקה במכון – לפני שאתה בכלל רואה את הרכב.</p>
+      </div>
+
+      <div className="cat-panel" id="cars">
+        <div className="cat-panel-head">
+          <h2>רכבים שבדקנו השבוע.</h2>
+          <p>מה המוכר ביקש, ומה מחיר היעד שלנו.</p>
+          <Link className="text-link" to="/catalog">לקטלוג המלא</Link>
+        </div>
+        <div className="cat-track-wrap">
+          <div className="cat-track" ref={track}>
+            {cars.map((c) => (
+              <Link to={`/catalog?car=${c.id}`} className="rc-card" key={c.id}>
+                <span className="rc-pic"><img src={carImage(c)} alt="" loading="lazy" /></span>
+                <span className="rc-body">
+                  <Tag tone="accent">חוסכים {formatPrice(c.asked - c.target)}</Tag>
+                  <b className="rc-name">{c.make} {c.model}</b>
+                  <span className="rc-meta">{c.year} · יד {c.hand} · {formatKm(c.km)}</span>
+                  <span className="rc-price">
+                    <s>{formatPrice(c.asked)}</s>
+                    <b>{formatPrice(c.target)}</b>
+                  </span>
+                </span>
+              </Link>
+            ))}
+            <Link to="/catalog" className="rc-card rc-more">
+              <b>עוד {CARS.length - cars.length} רכבים</b>
+              <span>לקטלוג המלא</span>
+            </Link>
+          </div>
+        </div>
       </div>
 
       <div className="hero-progress" aria-hidden="true"><i /></div>
@@ -149,68 +165,6 @@ function WordsBand() {
         ))}
       </div>
     </div>
-  );
-}
-
-/* ====================================================================== short catalog */
-
-/** Six checked cars in a row the visitor can drag or swipe; cards lean in on arrival. */
-function ShortCatalog() {
-  const root = useRef<HTMLElement>(null);
-  const row = useRef<HTMLDivElement>(null);
-  useGSAP(
-    () => {
-      if (reducedMotion()) return;
-      gsap.from(".car-tile", { x: -120, skewX: 8, autoAlpha: 0, duration: 0.9, ease: EASE.out, stagger: 0.07, scrollTrigger: { trigger: row.current, start: "top 85%", once: true } });
-      // the whole row drifts a little against the scroll for depth
-      gsap.fromTo(row.current, { x: -60 }, { x: 60, ease: "none", scrollTrigger: { trigger: root.current, start: "top bottom", end: "bottom top", scrub: true } });
-    },
-    { scope: root },
-  );
-
-  // drag to scroll with the mouse (touch scrolls natively)
-  const drag = useRef({ on: false, x: 0, left: 0 });
-  const down = (e: React.PointerEvent) => {
-    if (e.pointerType !== "mouse" || !row.current) return;
-    drag.current = { on: true, x: e.clientX, left: row.current.scrollLeft };
-  };
-  const move = (e: React.PointerEvent) => {
-    if (!drag.current.on || !row.current) return;
-    row.current.scrollLeft = drag.current.left - (e.clientX - drag.current.x);
-  };
-  const up = () => (drag.current.on = false);
-
-  return (
-    <section className="cars section" id="cars" ref={root} aria-labelledby="cars-h">
-      <div className="wrap cars-head">
-        <h2 id="cars-h">רכבים שבדקנו השבוע.</h2>
-        <p>לכל רכב: מה המוכר ביקש, ומחיר היעד שלנו במשא ומתן.</p>
-        <Link className="text-link" to="/catalog">לכל הקטלוג</Link>
-      </div>
-      <div className="car-row" ref={row} data-lenis-prevent-wheel onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up}>
-        {CARS.slice(0, 6).map((c) => (
-          <Link to={`/catalog?car=${c.id}`} className="car-tile" key={c.id} draggable={false}>
-            <span className="car-tile-pic">
-              <img src={carImage(c)} alt="" loading="lazy" draggable={false} />
-            </span>
-            <span className="car-tile-body">
-              <Tag tone="accent">חוסכים {formatPrice(c.asked - c.target)}</Tag>
-              <b className="car-tile-name">{c.make} {c.model}</b>
-              <span className="car-tile-meta">{c.year} · יד {c.hand} · {formatKm(c.km)}</span>
-              <span className="car-tile-price">
-                <s>{formatPrice(c.asked)}</s>
-                <b>{formatPrice(c.target)}</b>
-              </span>
-            </span>
-          </Link>
-        ))}
-        <Link to="/catalog" className="car-tile car-tile-more" draggable={false}>
-          <b>עוד {CARS.length - 6} רכבים</b>
-          <span>לקטלוג המלא</span>
-        </Link>
-      </div>
-      <p className="wrap note">רכבים ומחירים לדוגמה; התמונות הן הדמיה.</p>
-    </section>
   );
 }
 
@@ -283,9 +237,8 @@ function Contact() {
 export default function Landing() {
   return (
     <>
-      <Hero />
+      <HeroCatalog />
       <WordsBand />
-      <ShortCatalog />
       <About />
       <Contact />
     </>

@@ -3,20 +3,20 @@
  * No React state changes while scrolling.
  */
 export const hero = {
-  /** car yaw (rad). 0 = nose to camera; −π/2 = side profile, nose to the left */
-  yaw: -0.62,
-  /** metres travelled along the car's heading (the exit) */
-  drive: 0,
-  /** metres of floor streaming under a stationary car (driving in place) */
+  /** metres of road that have streamed under the car (the car "drives" while it stays in frame) */
   road: 0,
+  /** road speed in m/s added every frame (idle cruise) */
+  cruise: 2.2,
+  /** 0..1 scissor doors */
+  doors: 0,
   /** 0..1 headlights */
-  lights: 0.15,
-  /** 0..1 camera push-in */
+  lights: 0.25,
+  /** 0..1 camera push toward the open door */
   zoom: 0,
   /** entrance: metres the car starts behind its mark */
   enter: 0,
-  /** sideways shift of the car's mark (m, +x = toward the text) so the side profile stays in frame */
-  pan: 0,
+  /** 0..1 how far the catalog panel has risen (the car is lifted in frame to stay visible above it) */
+  panel: 0,
 };
 
 export const HERO_START = { ...hero };
