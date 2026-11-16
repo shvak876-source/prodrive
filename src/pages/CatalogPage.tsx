@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { useLenis } from "lenis/react";
 import { CARS, CATEGORIES, carImage, formatKm, formatPrice, type Car, type Category } from "../data/cars";
 import { waLink } from "../data/site";
-import { MiniPlate, PlateButton } from "../components/Plate";
+import { Tag, Button } from "../components/ui";
 import { DUR, EASE, Flip, gsap, reducedMotion, useGSAP } from "../motion/gsap";
 import { SplitReveal } from "../motion/primitives";
 
@@ -50,7 +50,7 @@ function Sheet({ car, onClose }: { car: Car; onClose: () => void }) {
           <img src={carImage(car)} alt={`${car.make} ${car.model} – הדמיה`} />
         </div>
         <div>
-          <MiniPlate>{car.make} · {car.year}</MiniPlate>
+          <Tag>{car.make} · {car.year}</Tag>
           <h2 style={{ marginTop: 14 }}>{car.model}</h2>
           <div className="sheet-prices">
             <div>
@@ -69,9 +69,9 @@ function Sheet({ car, onClose }: { car: Car; onClose: () => void }) {
             <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
           ))}
         </dl>
-        <PlateButton href={waLink(`היי, מעניין אותי ה-${car.make} ${car.model} (${car.year}) מהאתר`)} size="lg">
+        <Button href={waLink(`היי, מעניין אותי ה-${car.make} ${car.model} (${car.year}) מהאתר`)} size="lg">
           אני רוצה את הרכב הזה
-        </PlateButton>
+        </Button>
         <p className="note">נתונים לדוגמה; התמונה היא הדמיה.</p>
       </div>
     </div>
@@ -153,7 +153,7 @@ export default function CatalogPage() {
         <div className="cat-grid" ref={grid}>
           {list.map((c) => (
             <button className="cat-card" key={c.id} data-flip-id={c.id} onClick={() => setOpen(c)} aria-label={`${c.make} ${c.model}, ${c.year}`}>
-              <span className="cat-tag"><MiniPlate>חוסכים {formatPrice(c.asked - c.target)}</MiniPlate></span>
+              <span className="cat-tag"><Tag>חוסכים {formatPrice(c.asked - c.target)}</Tag></span>
               <span className="cat-pic"><img src={carImage(c)} alt="" loading="lazy" /></span>
               <span className="cat-body">
                 <span className="cat-top">

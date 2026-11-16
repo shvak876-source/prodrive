@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { FOUNDER, waLink } from "../data/site";
-import { PlateButton, img } from "../components/Plate";
+import { Button, img } from "../components/ui";
 import { DUR, EASE, gsap, reducedMotion, useGSAP } from "../motion/gsap";
 import { SplitReveal } from "../motion/primitives";
 
@@ -66,7 +66,7 @@ export default function AboutPage() {
           ))}
         </div>
         <div style={{ marginTop: 48 }}>
-          <PlateButton href={waLink("היי דניאל, אשמח לדבר על רכב")} size="lg">דברו איתי ישירות</PlateButton>
+          <Button href={waLink("היי דניאל, אשמח לדבר על רכב")} size="lg">דברו איתי ישירות</Button>
         </div>
       </section>
     </div>

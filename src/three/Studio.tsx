@@ -21,9 +21,9 @@ export function SoftShadow({ length = 5.4, width = 2.6, opacity = 0.6 }: { lengt
     return t;
   }, []);
   return (
-    <mesh rotation-x={-Math.PI / 2} position={[0, -0.155, 0]} renderOrder={-1}>
+    <mesh rotation-x={-Math.PI / 2} renderOrder={1}>
       <planeGeometry args={[width, length]} />
-      <meshBasicMaterial map={tex} transparent opacity={opacity} depthWrite={false} toneMapped={false} />
+      <meshBasicMaterial map={tex} transparent opacity={opacity} depthWrite={false} toneMapped={false} fog={false} />
     </mesh>
   );
 }

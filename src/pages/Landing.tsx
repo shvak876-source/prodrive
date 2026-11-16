@@ -1,195 +1,138 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { CARS, CATEGORIES, carImage, formatKm, formatPrice, type Category } from "../data/cars";
-import { FAQ, FOUNDER, PACKAGES, SITE, waLink } from "../data/site";
-import { MiniPlate, PlateButton, img } from "../components/Plate";
-import { Odometer, type OdometerHandle } from "../components/Odometer";
+import { CARS, carImage, formatKm, formatPrice } from "../data/cars";
+import { FOUNDER, SITE, waLink } from "../data/site";
+import { Button, Tag, img } from "../components/ui";
 import { PAINTS, type PaintId } from "../three/RealCar";
-import { STORY_START, story } from "../three/storyState";
-import { DUR, EASE, Flip, ScrollTrigger, gsap, reducedMotion, useGSAP } from "../motion/gsap";
+import { HERO_START, hero } from "../three/heroState";
+import { DUR, EASE, ScrollTrigger, gsap, reducedMotion, useGSAP } from "../motion/gsap";
 import { SplitReveal } from "../motion/primitives";
 
-const CarStage = lazy(() => import("../three/CarStage"));
+const HeroStage = lazy(() => import("../three/HeroStage"));
 
-/* ======================================================================= story */
-
-const ACTS = [
-  { id: "search", word: "מחפשים", text: "סורקים מאות מודעות, סוכנויות וחברות ליסינג. אתה מקבל שלושה רכבים שבאמת מתאימים – לא שלושים." },
-  { id: "inspect", word: "בודקים", text: "פותחים כל דלת: היסטוריית ביטוח ותאונות, קילומטראז׳ מול רשומות טסט ובדיקה במכון מורשה." },
-  { id: "deal", word: "מתמקחים", text: "מגיעים למוכר עם נתונים ולא עם תחושות – ואתה לא צריך להתווכח עם אף אחד." },
-  { id: "keys", word: "מוסרים", text: "מימון, ביטוח והעברת בעלות – והרכב מחכה לך בחניה עם מפתח." },
-];
-const ASKED = 249000;
-const CLOSED = 231500;
+/* ====================================================================== hero */
 
 /**
- * Hero + pinned scroll story in one section. The car stage holds still while ~4 screens of scroll
- * play the brokerage as a performance:
- *   search  – the car turns a full circle (we look at it from every side)
- *   inspect – scissor doors and the front clamshell open, camera moves in
- *   deal    – doors close, side profile, the price odometer rolls from asked to closed
- *   keys    – lights on, the car drives out of frame
+ * Text on the right, the car on the left. The section holds for ~2 screens of scroll:
+ *   0.00–0.45  the car spins its wheels in place, the floor streams, it turns to a side profile
+ *   0.45–1.00  lights on, it launches out of frame to the left
+ * The speed lines over the stage follow the car's speed (and the visitor's scroll speed).
  */
-function Story() {
+function Hero() {
   const root = useRef<HTMLElement>(null);
-  const odo = useRef<OdometerHandle>(null);
   const [paint, setPaint] = useState<PaintId>("carmine");
-  const [act, setAct] = useState(-1);
 
   useGSAP(
     () => {
-      Object.assign(story, STORY_START);
+      Object.assign(hero, HERO_START);
       const rm = reducedMotion();
-      // entrance: plate slides up, car drops onto it
-      if (!rm) {
-        gsap.from(".giant-plate", { yPercent: 40, autoAlpha: 0, duration: 1.4, ease: EASE.out, delay: 0.1 });
-        gsap.fromTo(story, { lift: 1.6, yaw: STORY_START.yaw + 1.2 }, { lift: 0, yaw: STORY_START.yaw, duration: 1.8, ease: "expo.out", delay: 0.35 });
-        gsap.from(".hero-act .lead, .hero-act .hero-actions, .swatches", { y: 24, autoAlpha: 0, duration: DUR.base, ease: EASE.out, stagger: 0.08, delay: 0.6 });
-      }
-      if (rm) {
-        story.yaw = -0.9;
-        return;
-      }
+      const speed = gsap.quickSetter(root.current, "--speed");
+      if (rm) return;
 
-      const mm = gsap.matchMedia();
-      mm.add("(min-width: 0px)", () => {
-        const val = { price: ASKED };
-        const tl = gsap.timeline({
-          defaults: { ease: EASE.scrub },
-          scrollTrigger: {
-            trigger: root.current,
-            start: "top top",
-            end: "+=360%",
-            pin: true,
-            scrub: true,
-            anticipatePin: 1,
-            onUpdate: (st) => {
-              // which act is on screen (hero = -1), for the act plates
-              const p = st.progress;
-              setAct(p < 0.12 ? -1 : p < 0.36 ? 0 : p < 0.58 ? 1 : p < 0.8 ? 2 : 3);
-            },
+      // arrival: the car drives onto its mark from the right, wheels turning, then settles
+      hero.enter = 9;
+      gsap.to(hero, { enter: 0, duration: 1.6, ease: "expo.out", delay: 0.25 });
+      gsap.from(".hero-copy > *:not(h1)", { x: -80, autoAlpha: 0, duration: 0.8, ease: EASE.out, stagger: 0.07, delay: 0.5 });
+
+      const state = { s: 0 };
+      const tl = gsap.timeline({
+        defaults: { ease: "none" },
+        scrollTrigger: {
+          trigger: root.current,
+          start: "top top",
+          end: "+=190%",
+          pin: true,
+          scrub: true,
+          onUpdate: (self) => {
+            // speed lines: the story's own speed plus a kick from how fast the visitor scrolls
+            const kick = Math.min(1, Math.abs(self.getVelocity()) / 4000);
+            speed(Math.min(1, state.s + kick * 0.5));
           },
-        });
-        // hero copy leaves
-        tl.to(".hero-act", { autoAlpha: 0, y: -60, duration: 0.6 }, 0.4)
-          // SEARCH: one full turn and a bit, ending three-quarter front
-          .to(story, { yaw: STORY_START.yaw - Math.PI * 2, duration: 2.4, ease: "sine.inOut" }, 0.3)
-          .fromTo(".act-search", { autoAlpha: 0, y: 60 }, { autoAlpha: 1, y: 0, duration: 0.5 }, 0.9)
-          .to(".act-search", { autoAlpha: 0, y: -60, duration: 0.5 }, 2.6)
-          // INSPECT: doors up, clamshell up, move in
-          .to(story, { doors: 1, hood: 1, zoom: 1, yaw: STORY_START.yaw - Math.PI * 2 + 0.25, duration: 1.6, ease: "power2.inOut" }, 2.8)
-          .fromTo(".act-inspect", { autoAlpha: 0, y: 60 }, { autoAlpha: 1, y: 0, duration: 0.5 }, 3.0)
-          .to(".act-inspect", { autoAlpha: 0, y: -60, duration: 0.5 }, 4.6)
-          // DEAL: close up, side profile, price rolls down
-          .to(story, { doors: 0, hood: 0, zoom: 0.3, yaw: -Math.PI / 2 - Math.PI * 2, duration: 1.3, ease: "power2.inOut" }, 4.7)
-          .fromTo(".act-deal", { autoAlpha: 0, y: 60 }, { autoAlpha: 1, y: 0, duration: 0.5 }, 4.9)
-          .to(val, { price: CLOSED, duration: 1.4, ease: "power1.inOut", onUpdate: () => odo.current?.set(val.price) }, 5.3)
-          .to(".act-deal", { autoAlpha: 0, y: -60, duration: 0.5 }, 6.9)
-          // KEYS: lights on, nose toward the exit, drive out
-          .to(story, { lights: 1, zoom: 0, yaw: -Math.PI / 2 - Math.PI * 2 - 0.35, duration: 0.8 }, 7.0)
-          .fromTo(".act-keys", { autoAlpha: 0, y: 60 }, { autoAlpha: 1, y: 0, duration: 0.5 }, 7.2)
-          .to(story, { drive: 16, duration: 1.8, ease: "power2.in" }, 7.9)
-          .to(".giant-plate", { yPercent: -18, duration: 9.7, ease: "none" }, 0)
-          .to(".story-progress i", { scaleX: 1, duration: 9.7, ease: "none" }, 0);
+        },
       });
-      return () => mm.revert();
+      tl.to(hero, { road: 26, duration: 4.5, ease: "power2.in" }, 0)
+        .to(state, { s: 0.75, duration: 4.5, ease: "power2.in" }, 0)
+        .to(hero, { yaw: -Math.PI / 2, zoom: 0.15, pan: 0.9, duration: 3, ease: "sine.inOut" }, 0.5)
+        .to(".hero-copy", { x: 160, autoAlpha: 0, duration: 1.6, ease: "power2.in" }, 0.6)
+        .fromTo(".hero-second", { x: -140, autoAlpha: 0 }, { x: 0, autoAlpha: 1, duration: 1.4, ease: "power3.out" }, 2.1)
+        .to(hero, { lights: 1, duration: 0.6 }, 4.2)
+        .to(hero, { drive: 24, zoom: 0, duration: 3.6, ease: "power3.in" }, 4.6)
+        .to(state, { s: 1, duration: 1.6 }, 4.6)
+        .to(".hero-second", { x: 200, autoAlpha: 0, duration: 1.2, ease: "power2.in" }, 7.4)
+        .to(".hero-progress i", { scaleX: 1, duration: 8.6 }, 0);
     },
     { scope: root },
   );
 
   return (
-    <section className="story" ref={root} aria-label="Pro Drive – תיווך רכב">
-      <div className="story-stage">
-        <div className="giant-plate" aria-hidden="true">
-          <span className="giant-plate-strip">IL</span>
-          <span className="giant-plate-text">
-            <svg viewBox="0 0 1000 200" role="presentation">
-              <text x="0" y="160" fontSize="196">PRO·DRIVE</text>
-            </svg>
-          </span>
-        </div>
-        <Suspense fallback={<div className="stage-canvas" />}>
-          <CarStage paint={paint} />
-        </Suspense>
-      </div>
-
-      <div className="story-copy">
-        <div className="act hero-act">
-          <SplitReveal as="h1" className="display" immediate>
-            מתווך רכב שעובד בשבילך.
-          </SplitReveal>
-          <p className="lead">אני מאתר, בודק ומתמקח על הרכב הבא שלך – מול סוכנויות, ליסינג ויד שנייה. אתה מגיע רק לקחת מפתח.</p>
-          <div className="hero-actions">
-            <PlateButton href={waLink("היי, אני מחפש רכב ואשמח לשיחה")} size="lg">
-              ספרו לי מה אתם מחפשים
-            </PlateButton>
-            <a className="text-link" href="#how">איך זה עובד</a>
-          </div>
-          <div className="swatches" role="radiogroup" aria-label="צבע הרכב">
-            <span>צבע:</span>
-            {(Object.keys(PAINTS) as PaintId[]).map((id) => (
-              <button
-                key={id}
-                role="radio"
-                aria-checked={paint === id}
-                aria-label={PAINTS[id].label}
-                className={`swatch ${paint === id ? "is-on" : ""}`}
-                style={{ ["--c" as string]: PAINTS[id].color }}
-                onClick={() => setPaint(id)}
-              />
-            ))}
-          </div>
-        </div>
-
-        {ACTS.map((a) => (
-          <div className={`act act-${a.id}`} key={a.id}>
-            <h2 className="act-word">{a.word}</h2>
-            {a.id === "deal" && (
-              <div className="deal">
-                <div>
-                  <span className="deal-label">המחיר המבוקש</span>
-                  <s className="deal-asked">{formatPrice(ASKED)}</s>
-                </div>
-                <div>
-                  <span className="deal-label">המחיר שסגרנו (דוגמה)</span>
-                  <Odometer ref={odo} digits={6} initial={ASKED} prefix="₪" label="המחיר שסגרנו" />
-                </div>
-              </div>
-            )}
-            <p className="lead">{a.text}</p>
-          </div>
+    <section className="hero" ref={root} aria-label="Pro Drive">
+      <Suspense fallback={<div className="hero-canvas" />}>
+        <HeroStage paint={paint} />
+      </Suspense>
+      <div className="speed-lines" aria-hidden="true">
+        {Array.from({ length: 16 }, (_, i) => (
+          <i key={i} style={{ ["--y" as string]: `${8 + ((i * 37) % 84)}%`, ["--d" as string]: `${0.5 + ((i * 13) % 7) / 10}s`, ["--w" as string]: `${18 + ((i * 29) % 30)}%` }} />
         ))}
-
-        <ol className="act-plates" aria-label="שלבי העבודה">
-          {ACTS.map((a, i) => (
-            <li key={a.id} className={act === i ? "is-on" : act > i ? "is-done" : ""}>
-              <MiniPlate>{a.word}</MiniPlate>
-            </li>
-          ))}
-        </ol>
       </div>
-      <div className="story-progress" aria-hidden="true"><i /></div>
+
+      <div className="hero-copy">
+        <SplitReveal as="h1" className="hero-title" immediate>
+          מוצאים לך רכב. מהר.
+        </SplitReveal>
+        <p className="hero-lead">
+          Pro Drive הוא תיווך רכב שעובד רק בשבילך: מאתרים, בודקים ומתמקחים – ואתה מגיע רק לקחת מפתח.
+        </p>
+        <div className="hero-actions">
+          <Button href={waLink("היי, אני מחפש רכב ואשמח לשיחה")} size="lg">
+            ספרו לי מה אתם מחפשים
+          </Button>
+          <a className="text-link" href="#cars">לרכבים שבדקנו</a>
+        </div>
+        <div className="swatches" role="radiogroup" aria-label="צבע הרכב">
+          {(Object.keys(PAINTS) as PaintId[]).map((id) => (
+            <button
+              key={id}
+              role="radio"
+              aria-checked={paint === id}
+              aria-label={PAINTS[id].label}
+              className={`swatch ${paint === id ? "is-on" : ""}`}
+              style={{ ["--c" as string]: PAINTS[id].color }}
+              onClick={() => setPaint(id)}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="hero-second">
+        <h2>שלושה רכבים מתאימים. שבוע אחד.</h2>
+        <ul className="hero-facts">
+          <li><b>0 ₪</b><span>עמלות ממוכרים – אני עובד רק בשבילך</span></li>
+          <li><b>120</b><span>נקודות בדיקה לכל רכב לפני שאתה רואה אותו</span></li>
+          <li><b>1</b><span>טלפון אישי, מהשיחה הראשונה ועד המסירה</span></li>
+        </ul>
+      </div>
+
+      <div className="hero-progress" aria-hidden="true"><i /></div>
     </section>
   );
 }
 
-/* ====================================================================== plates band */
+/* ====================================================================== words band */
 
-const PLATE_NUMBERS = ["12-345-67", "803-41-902", "55-218-36", "271-08-114", "96-512-04", "418-26-337", "30-777-81", "624-90-215", "71-403-58", "189-62-740"];
+const WORDS = ["מאתרים", "בודקים", "מתמקחים", "מוסרים"];
 
-/** Full-width yellow band of plates sliding sideways; scroll speed skews and speeds it up. */
-function PlatesBand() {
+/** Big condensed words racing sideways; scroll speed skews them and speeds them up. */
+function WordsBand() {
   const track = useRef<HTMLDivElement>(null);
   useGSAP(() => {
     if (reducedMotion() || !track.current) return;
-    // the row holds the list twice: sliding it by half its width loops seamlessly (left → right)
-    const loop = gsap.fromTo(track.current, { xPercent: -50 }, { xPercent: 0, duration: 30, ease: "none", repeat: -1 });
-    const skew = gsap.quickTo(track.current, "skewX", { duration: 0.5, ease: "power3.out" });
+    const loop = gsap.fromTo(track.current, { xPercent: -50 }, { xPercent: 0, duration: 18, ease: "none", repeat: -1 });
+    const skew = gsap.quickTo(track.current, "skewX", { duration: 0.4, ease: "power3.out" });
     const st = ScrollTrigger.create({
       onUpdate: (self) => {
-        const v = gsap.utils.clamp(-12, 12, self.getVelocity() / 260);
-        skew(-v);
-        loop.timeScale(1 + Math.abs(v) * 0.6);
+        const v = gsap.utils.clamp(-14, 14, self.getVelocity() / 220);
+        skew(v);
+        loop.timeScale(1 + Math.abs(v) / 3);
       },
     });
     return () => {
@@ -197,228 +140,76 @@ function PlatesBand() {
       st.kill();
     };
   });
-  const row = [...PLATE_NUMBERS, ...PLATE_NUMBERS];
+  const row = [...WORDS, ...WORDS, ...WORDS, ...WORDS];
   return (
-    <div className="plates-band" aria-hidden="true">
-      <div className="plates-track" ref={track}>
-        {row.map((n, i) => (
-          <span className="band-plate" key={i}>
-            <i>IL</i>
-            <b>{n}</b>
-          </span>
+    <div className="words-band" aria-label={WORDS.join(", ")}>
+      <div className="words-track" ref={track} aria-hidden="true">
+        {row.map((w, i) => (
+          <span key={i}>{w}<i /></span>
         ))}
       </div>
     </div>
   );
 }
 
-/* ====================================================================== statement */
+/* ====================================================================== short catalog */
 
-function Statement() {
+/** Six checked cars in a row the visitor can drag or swipe; cards lean in on arrival. */
+function ShortCatalog() {
   const root = useRef<HTMLElement>(null);
+  const row = useRef<HTMLDivElement>(null);
   useGSAP(
     () => {
       if (reducedMotion()) return;
-      gsap.from(".thumb", {
-        scale: 0,
-        rotate: -12,
-        duration: 0.9,
-        ease: "back.out(1.7)",
-        stagger: 0.12,
-        scrollTrigger: { trigger: root.current, start: "top 70%", once: true },
-      });
+      gsap.from(".car-tile", { x: -120, skewX: 8, autoAlpha: 0, duration: 0.9, ease: EASE.out, stagger: 0.07, scrollTrigger: { trigger: row.current, start: "top 85%", once: true } });
+      // the whole row drifts a little against the scroll for depth
+      gsap.fromTo(row.current, { x: -60 }, { x: 60, ease: "none", scrollTrigger: { trigger: root.current, start: "top bottom", end: "bottom top", scrub: true } });
     },
     { scope: root },
   );
-  const T = ({ src, alt }: { src: string; alt: string }) => (
-    <span className="thumb">
-      <img src={img(src)} alt={alt} loading="lazy" />
-    </span>
-  );
-  return (
-    <section className="statement-sec" ref={root} id="how">
-      <h2 className="sr-only">מה זה תיווך רכב</h2>
-      <p className="statement">
-        אני לא מוכר רכבים <T src="d-wheel.webp" alt="גלגל וצלחת בלם" />. אני קונה אותם בשבילך <T src="d-seat.webp" alt="מושבים מבעד לדלת פתוחה" />, בודק כל פרט <T src="d-light.webp" alt="פנס קדמי דולק" /> ומביא אותך עד הלוחית <T src="d-plate.webp" alt="לוחית רישוי צהובה" /> החדשה.
-      </p>
-    </section>
-  );
-}
 
-/* ====================================================================== packages */
-
-/** Order carried by size: three tiles, each taller than the last, growing in as they enter. */
-function Packages() {
-  const root = useRef<HTMLElement>(null);
-  useGSAP(
-    () => {
-      if (reducedMotion()) return;
-      gsap.from(".tile", {
-        scaleY: 0.15,
-        transformOrigin: "bottom",
-        duration: 1.2,
-        ease: "expo.out",
-        stagger: 0.12,
-        scrollTrigger: { trigger: ".tiles", start: "top 75%", once: true },
-      });
-      gsap.from(".tile img", {
-        y: 60,
-        autoAlpha: 0,
-        duration: 1.2,
-        ease: EASE.out,
-        stagger: 0.12,
-        delay: 0.3,
-        scrollTrigger: { trigger: ".tiles", start: "top 75%", once: true },
-      });
-      gsap.from(".tile-text", { y: 24, autoAlpha: 0, stagger: 0.09, duration: DUR.base, ease: EASE.out, scrollTrigger: { trigger: ".tile-texts", start: "top 85%", once: true } });
-    },
-    { scope: root },
-  );
-  return (
-    <section className="packages section" ref={root} aria-labelledby="pk-h">
-      <div className="wrap packages-grid">
-        <h2 id="pk-h" className="packages-h">שלוש חבילות, מחיר אחד ידוע מראש.</h2>
-        <div className="tiles">
-          {PACKAGES.map((p, i) => (
-            <div className={`tile tile-${i}`} key={p.id}>
-              <img src={img(p.image)} alt="" loading="lazy" />
-            </div>
-          ))}
-        </div>
-        <div className="tile-texts">
-          {PACKAGES.map((p, i) => (
-            <div className={`tile-text tile-text-${i}`} key={p.id}>
-              <h3>{p.name}</h3>
-              <p className="tile-price">{formatPrice(p.price)}</p>
-              <p>{p.text}</p>
-            </div>
-          ))}
-        </div>
-        <p className="note">מחירים לדוגמה, כולל מע״מ.</p>
-      </div>
-    </section>
-  );
-}
-
-/* ====================================================================== report showcase */
-
-const REPORT = [
-  { id: "history", tab: "היסטוריה", title: "כל מה שקרה לרכב.", text: "בעלויות קודמות, תביעות ביטוח, שמאויות וריקולים פתוחים – מול המאגרים הרשמיים, לפני שמישהו נוסע לראות אותו.", image: "d-plate.webp" },
-  { id: "garage", tab: "מכון בדיקה", title: "בדיקה מלאה במכון.", text: "מנוע, גיר, שלדה, בלמים וצמיגים. דו״ח כתוב עם תמונות, ואני עובר עליו איתך שורה אחרי שורה.", image: "d-wheel.webp" },
-  { id: "cabin", tab: "תא הנוסעים", title: "מבפנים, לא רק מבחוץ.", text: "מערכות, מושבים, מזגן ומולטימדיה – הדברים שמגלים רק אחרי חודש של נסיעה, נבדקים ביום הראשון.", image: "d-seat.webp" },
-];
-
-/** The live report: tabs swap the square picture with a slow crossfade (the page's signature move). */
-function Report() {
-  const [i, setI] = useState(0);
-  const root = useRef<HTMLElement>(null);
-  const paused = useRef(false);
-  useEffect(() => {
-    if (reducedMotion()) return;
-    const id = window.setInterval(() => {
-      if (!paused.current && !document.hidden) setI((n) => (n + 1) % REPORT.length);
-    }, 5600);
-    return () => window.clearInterval(id);
-  }, []);
-  const r = REPORT[i];
-  return (
-    <section className="report" ref={root} aria-labelledby="rep-h" onPointerEnter={() => (paused.current = true)} onPointerLeave={() => (paused.current = false)}>
-      <div className="report-pic">
-        {REPORT.map((x, k) => (
-          <img key={x.id} src={img(x.image)} alt={k === i ? x.title : ""} className={k === i ? "is-on" : ""} loading="lazy" />
-        ))}
-        <span className="report-stamp">נבדק</span>
-      </div>
-      <div className="report-body">
-        <div className="tabs" role="tablist" aria-label="חלקי הדו״ח">
-          {REPORT.map((x, k) => (
-            <button key={x.id} role="tab" aria-selected={k === i} className={k === i ? "is-on" : ""} onClick={() => setI(k)}>
-              {x.tab}
-            </button>
-          ))}
-        </div>
-        <div className="report-text" role="tabpanel">
-          <h2 id="rep-h">{r.title}</h2>
-          <p>{r.text}</p>
-        </div>
-        <div className="cells">
-          <a className="cell cell-ink" href={waLink("אשמח לקבל דו״ח בדיקה לדוגמה")} target="_blank" rel="noreferrer">
-            דו״ח לדוגמה בוואטסאפ
-          </a>
-          <Link className="cell cell-soft" to="/catalog">
-            רכבים שנבדקו
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* ====================================================================== market list */
-
-/** Category tabs + banded rows of checked cars; Flip animates the rows when the tab changes. */
-function Market() {
-  const [cat, setCat] = useState<Category>("משפחתי");
-  const list = useRef<HTMLDivElement>(null);
-  const flip = useRef<Flip.FlipState | null>(null);
-  const rows = CARS.filter((c) => c.category === cat).slice(0, 4);
-  const choose = (c: Category) => {
-    if (list.current && !reducedMotion()) flip.current = Flip.getState(list.current.children);
-    setCat(c);
+  // drag to scroll with the mouse (touch scrolls natively)
+  const drag = useRef({ on: false, x: 0, left: 0 });
+  const down = (e: React.PointerEvent) => {
+    if (e.pointerType !== "mouse" || !row.current) return;
+    drag.current = { on: true, x: e.clientX, left: row.current.scrollLeft };
   };
-  useGSAP(
-    () => {
-      if (!flip.current) {
-        if (!reducedMotion())
-          gsap.from(".band", { y: 30, autoAlpha: 0, stagger: 0.07, duration: DUR.base, ease: EASE.out, scrollTrigger: { trigger: list.current, start: "top 85%", once: true } });
-        return;
-      }
-      const s = flip.current;
-      flip.current = null;
-      Flip.from(s, { duration: 0.6, ease: "power3.inOut", absolute: true, onEnter: (e) => gsap.fromTo(e, { autoAlpha: 0, x: -40 }, { autoAlpha: 1, x: 0, duration: 0.5, stagger: 0.05 }), onLeave: (e) => gsap.to(e, { autoAlpha: 0, duration: 0.25 }) });
-    },
-    { scope: list, dependencies: [cat], revertOnUpdate: false },
-  );
+  const move = (e: React.PointerEvent) => {
+    if (!drag.current.on || !row.current) return;
+    row.current.scrollLeft = drag.current.left - (e.clientX - drag.current.x);
+  };
+  const up = () => (drag.current.on = false);
+
   return (
-    <section className="market section" aria-labelledby="mk-h">
-      <div className="wrap">
-        <div className="market-head">
-          <h2 id="mk-h">
-            <span className="soft">עכשיו בשוק,</span>
-            <br />
-            רכבים שבדקתי השבוע.
-          </h2>
-          <PlateButton to="/catalog">לכל הרכבים</PlateButton>
-        </div>
-        <div className="market-body">
-          <div className="day-tabs" role="tablist" aria-label="סוג רכב">
-            {CATEGORIES.map((c) => (
-              <button key={c} role="tab" aria-selected={c === cat} className={c === cat ? "is-on" : ""} onClick={() => choose(c)}>
-                <b>{c}</b>
-                <span>{CARS.filter((x) => x.category === c).length} רכבים</span>
-              </button>
-            ))}
-          </div>
-          <div className="bands" ref={list}>
-            {rows.map((c) => (
-              <Link to={`/catalog?car=${c.id}`} className="band" key={c.id} data-flip-id={c.id}>
-                <span className="band-year">{c.year}</span>
-                <span className="band-title">
-                  <b>{c.make} {c.model}</b>
-                  <small>{c.note}</small>
-                </span>
-                <span className="band-meta">יד {c.hand} · {formatKm(c.km)}</span>
-                <span className="band-price">
-                  <s>{formatPrice(c.asked)}</s>
-                  <b>{formatPrice(c.target)}</b>
-                </span>
-                <img className="band-pic" src={carImage(c)} alt="" loading="lazy" />
-              </Link>
-            ))}
-          </div>
-        </div>
-        <p className="note">רכבים ומחירים לדוגמה; התמונות הן הדמיה.</p>
+    <section className="cars section" id="cars" ref={root} aria-labelledby="cars-h">
+      <div className="wrap cars-head">
+        <h2 id="cars-h">רכבים שבדקנו השבוע.</h2>
+        <p>לכל רכב: מה המוכר ביקש, ומחיר היעד שלנו במשא ומתן.</p>
+        <Link className="text-link" to="/catalog">לכל הקטלוג</Link>
       </div>
+      <div className="car-row" ref={row} data-lenis-prevent-wheel onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerLeave={up}>
+        {CARS.slice(0, 6).map((c) => (
+          <Link to={`/catalog?car=${c.id}`} className="car-tile" key={c.id} draggable={false}>
+            <span className="car-tile-pic">
+              <img src={carImage(c)} alt="" loading="lazy" draggable={false} />
+            </span>
+            <span className="car-tile-body">
+              <Tag tone="accent">חוסכים {formatPrice(c.asked - c.target)}</Tag>
+              <b className="car-tile-name">{c.make} {c.model}</b>
+              <span className="car-tile-meta">{c.year} · יד {c.hand} · {formatKm(c.km)}</span>
+              <span className="car-tile-price">
+                <s>{formatPrice(c.asked)}</s>
+                <b>{formatPrice(c.target)}</b>
+              </span>
+            </span>
+          </Link>
+        ))}
+        <Link to="/catalog" className="car-tile car-tile-more" draggable={false}>
+          <b>עוד {CARS.length - 6} רכבים</b>
+          <span>לקטלוג המלא</span>
+        </Link>
+      </div>
+      <p className="wrap note">רכבים ומחירים לדוגמה; התמונות הן הדמיה.</p>
     </section>
   );
 }
@@ -430,90 +221,60 @@ function About() {
   useGSAP(
     () => {
       if (reducedMotion()) return;
-      gsap.fromTo(".about-shape", { yPercent: 20, rotate: -6 }, { yPercent: -8, rotate: 0, ease: "none", scrollTrigger: { trigger: root.current, start: "top bottom", end: "bottom top", scrub: true } });
-      gsap.from(".about-block", { y: 30, autoAlpha: 0, stagger: 0.1, duration: DUR.base, ease: EASE.out, scrollTrigger: { trigger: root.current, start: "top 65%", once: true } });
+      gsap.fromTo(".about-pic", { clipPath: "polygon(100% 0, 100% 0, 100% 100%, 100% 100%)" }, { clipPath: "polygon(8% 0, 100% 0, 92% 100%, 0 100%)", duration: 1.3, ease: "expo.inOut", scrollTrigger: { trigger: root.current, start: "top 70%", once: true } });
+      gsap.fromTo(".about-pic img", { scale: 1.25, xPercent: -6 }, { scale: 1.05, xPercent: 4, ease: "none", scrollTrigger: { trigger: root.current, start: "top bottom", end: "bottom top", scrub: true } });
+      gsap.from(".about-text > *", { y: 30, autoAlpha: 0, duration: DUR.base, ease: EASE.out, stagger: 0.08, scrollTrigger: { trigger: root.current, start: "top 65%", once: true } });
     },
     { scope: root },
   );
   return (
-    <section className="about-panel" ref={root} aria-labelledby="ab-h">
-      <div className="about-left">
-        <h2 id="ab-h">מאחורי כל עסקה יש בן אדם.</h2>
-        <div className="about-shape">
-          <img src={img(FOUNDER.photo || "d-seat.webp")} alt={FOUNDER.photo ? FOUNDER.name : "תא נהג מבעד לדלת פתוחה"} loading="lazy" />
-          <span className="about-shape-strip" aria-hidden="true" />
+    <section className="about section" id="about" ref={root} aria-labelledby="about-h">
+      <div className="wrap about-grid">
+        <div className="about-text">
+          <h2 id="about-h">נעים להכיר, {FOUNDER.name.split(" ")[0]}.</h2>
+          <p className="about-lead">{FOUNDER.intro[0]}</p>
+          <p>{FOUNDER.intro[1]}</p>
+          <ul className="about-facts">
+            <li><b>2008</b><span>הרכב הראשון שמכרתי</span></li>
+            <li><b>2016</b><span>עברתי צד – רק בשביל הקונה</span></li>
+            <li><b>היום</b><span>עדיין נוהג בכל רכב לפני שאני ממליץ</span></li>
+          </ul>
+          <div className="about-actions">
+            <Button to="/about">הסיפור המלא</Button>
+            <span className="about-sign">{FOUNDER.name}, {FOUNDER.role}</span>
+          </div>
         </div>
-      </div>
-      <div className="about-right">
-        <div className="about-block">
-          <h3>{FOUNDER.name}</h3>
-          <p>{FOUNDER.intro[0]} {FOUNDER.intro[1].split(".")[0]}.</p>
-        </div>
-        <div className="about-block">
-          <h3>למה עברתי צד</h3>
-          <p>אין לי עמלות ממוכרים, אז ההמלצה שלי לא תלויה במי שמוכר. כל לקוח מקבל את הטלפון האישי שלי – מהשיחה הראשונה ועד אחרי המסירה.</p>
-        </div>
-        <PlateButton to="/about">הסיפור המלא</PlateButton>
+        <figure className="about-pic">
+          <img src={img(FOUNDER.photo || "d-seat.webp")} alt={FOUNDER.photo ? FOUNDER.name : "תא הנהג – מקום לתמונה של הבעלים"} loading="lazy" />
+          {!FOUNDER.photo && <figcaption>כאן תיכנס התמונה שלך</figcaption>}
+        </figure>
       </div>
     </section>
   );
 }
 
-/* ====================================================================== faq */
+/* ====================================================================== contact */
 
-function Faq() {
+function Contact() {
+  const word = useRef<HTMLSpanElement>(null);
   const root = useRef<HTMLElement>(null);
   useGSAP(
     () => {
       if (reducedMotion()) return;
-      gsap.from(".qa", { y: 30, autoAlpha: 0, stagger: 0.06, duration: DUR.base, ease: EASE.out, scrollTrigger: { trigger: ".qas", start: "top 80%", once: true } });
+      gsap.fromTo(word.current, { xPercent: -30 }, { xPercent: 0, ease: "none", scrollTrigger: { trigger: root.current, start: "top bottom", end: "center center", scrub: true } });
     },
     { scope: root },
   );
   return (
-    <section className="faq section" ref={root} aria-labelledby="faq-h" id="faq">
-      <div className="wrap faq-grid">
-        <h2 id="faq-h" className="faq-h">שאלות שכולם שואלים.</h2>
-        <div className="qas">
-          {FAQ.map((f, i) => (
-            <details className="qa" key={f.q} name="faq" open={i === 0}>
-              <summary>
-                <span>{f.q}</span>
-                <i aria-hidden="true" />
-              </summary>
-              <p>{f.a}</p>
-            </details>
-          ))}
+    <section className="contact" id="contact" ref={root} aria-labelledby="contact-h">
+      <div className="wrap contact-inner">
+        <h2 id="contact-h" className="sr-only">יצירת קשר</h2>
+        <span className="contact-word" ref={word} aria-hidden="true">בואו ניסע.</span>
+        <div className="contact-row">
+          <p>שיחה של עשר דקות בוואטסאפ, ואני יוצא לחפש.</p>
+          <Button href={waLink("היי, אני מחפש רכב ואשמח לשיחה")} tone="accent" size="lg">כתבו לי בוואטסאפ</Button>
+          <a className="contact-phone" href={SITE.phoneHref} dir="ltr">{SITE.phone}</a>
         </div>
-      </div>
-    </section>
-  );
-}
-
-/* ====================================================================== cta */
-
-/** The whole band is one link, shaped as a giant plate. The word follows the pointer a little. */
-function Cta() {
-  const word = useRef<HTMLSpanElement>(null);
-  const move = (e: React.PointerEvent) => {
-    if (reducedMotion() || !word.current) return;
-    const r = e.currentTarget.getBoundingClientRect();
-    gsap.to(word.current, { x: ((e.clientX - r.left) / r.width - 0.5) * 40, y: ((e.clientY - r.top) / r.height - 0.5) * 20, duration: 0.8, ease: "power3.out" });
-  };
-  return (
-    <section className="cta-sec" aria-label="יצירת קשר" id="contact">
-      <a className="cta-band" href={waLink("היי, אני מחפש רכב ואשמח לשיחה")} target="_blank" rel="noreferrer" onPointerMove={move}>
-        <span className="cta-strip" aria-hidden="true">IL</span>
-        <span className="cta-note">שיחה של עשר דקות בוואטסאפ, ואני יוצא לחפש.</span>
-        <svg className="cta-arrow" viewBox="0 0 48 48" aria-hidden="true">
-          <path d="M38 10 L10 38 M38 10 H16 M38 10 V32" />
-        </svg>
-        <span className="cta-word" ref={word}>מתחילים</span>
-      </a>
-      <div className="wrap cta-alt">
-        <span>מעדיפים טלפון?</span>
-        <a href={SITE.phoneHref} dir="ltr">{SITE.phone}</a>
-        <span>{SITE.hours}</span>
       </div>
     </section>
   );
@@ -522,15 +283,11 @@ function Cta() {
 export default function Landing() {
   return (
     <>
-      <Story />
-      <PlatesBand />
-      <Statement />
-      <Packages />
-      <Report />
-      <Market />
+      <Hero />
+      <WordsBand />
+      <ShortCatalog />
       <About />
-      <Faq />
-      <Cta />
+      <Contact />
     </>
   );
 }

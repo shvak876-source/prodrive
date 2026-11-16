@@ -6,12 +6,12 @@ import * as THREE from "three";
 /** Public path of the compressed model (meshopt + WebP). CC-BY 4.0, credited in the footer. */
 export const CAR_URL = `${import.meta.env.BASE_URL}models/car.glb`;
 
-/** Paint finishes offered in the live colour picker. Values tuned against the white studio. */
+/** Paint finishes offered in the live colour picker, tuned for the pale studio. */
 export const PAINTS = {
-  carmine: { label: "אדום קרמין", color: "#6e050c", metalness: 0.35, roughness: 0.16 },
-  pearl: { label: "לבן פנינה", color: "#eeeae2", metalness: 0.25, roughness: 0.18 },
-  graphite: { label: "גרפיט", color: "#2b2e33", metalness: 0.7, roughness: 0.3 },
-  yellow: { label: "צהוב לוחית", color: "#f2c200", metalness: 0.3, roughness: 0.2 },
+  carmine: { label: "אדום", color: "#7d0a10", metalness: 0.55, roughness: 0.26 },
+  graphite: { label: "גרפיט", color: "#2a2d31", metalness: 0.75, roughness: 0.32 },
+  silver: { label: "כסף", color: "#a9adb3", metalness: 0.9, roughness: 0.28 },
+  pearl: { label: "לבן", color: "#e9e6df", metalness: 0.2, roughness: 0.22 },
 } as const;
 export type PaintId = keyof typeof PAINTS;
 
@@ -40,14 +40,14 @@ function plateTexture(text: string) {
   g.fillStyle = "#0b3d91";
   g.fillRect(0, 0, 150, c.height);
   g.fillStyle = "#fff";
-  g.font = "700 64px Rubik, Arial, sans-serif";
+  g.font = "700 64px Heebo, Arial, sans-serif";
   g.textAlign = "center";
   g.fillText("IL", 75, 170);
   g.strokeStyle = "#111";
   g.lineWidth = 10;
   g.strokeRect(5, 5, c.width - 10, c.height - 10);
   g.fillStyle = "#111";
-  g.font = "800 128px Rubik, Arial, sans-serif";
+  g.font = "800 128px Heebo, Arial, sans-serif";
   g.fillText(text, 595, 165);
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
@@ -118,7 +118,7 @@ export function RealCar({ paint = "carmine", pose, plate = "PRO·DRIVE" }: RealC
           mat.needsUpdate = true;
         }
         if (/Headlight|Brakelight|Signallight/.test(mat.name)) p.lights.push(mat);
-        mat.envMapIntensity = 1.15;
+        mat.envMapIntensity = 1;
       });
     });
   }, [model, plate]);

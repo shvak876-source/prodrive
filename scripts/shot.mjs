@@ -13,7 +13,7 @@ await page.waitForTimeout(5000);
 for (const s of scrolls.length ? scrolls.map(Number) : [0]) {
   await page.evaluate((y) => window.scrollTo(0, y), s);
   await page.waitForTimeout(3000);
-  await page.screenshot({ path: `${out}-${s}.png` });
+  await page.screenshot({ path: `${out}-${s}.png`, timeout: 180000 });
 }
 console.log("errors:", errs.slice(0, 8));
 await browser.close();
