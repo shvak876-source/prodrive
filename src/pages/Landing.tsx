@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { CARS, carImage, formatKm, formatPrice } from "../data/cars";
 import { FOUNDER, SITE, waLink } from "../data/site";
 import { Button, Tag, img } from "../components/ui";
-import { PAINTS, type PaintId } from "../three/RealCar";
+import { PAINTS, type PaintId } from "../three/paints";
 import { HERO_START, hero } from "../three/heroState";
 import { DUR, EASE, ScrollTrigger, gsap, reducedMotion, useGSAP } from "../motion/gsap";
 import { SplitReveal } from "../motion/primitives";
@@ -23,6 +23,7 @@ function HeroCatalog() {
   const root = useRef<HTMLElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const [paint, setPaint] = useState<PaintId>("carmine");
+  const [ready, setReady] = useState(false);
   const cars = CARS.slice(0, 6);
 
   useGSAP(
@@ -62,8 +63,11 @@ function HeroCatalog() {
   return (
     <section className="hero" ref={root} aria-label="Pro Drive – תיווך רכב">
       <Suspense fallback={<div className="hero-canvas" />}>
-        <RoadStage paint={paint} />
+        <RoadStage paint={paint} onReady={() => setReady(true)} />
       </Suspense>
+      <div className={`stage-loader ${ready ? "is-done" : ""}`} aria-hidden="true">
+        <i />
+      </div>
 
       {/* light panel the copy sits on, leaning with the page's slant */}
       <div className="hero-side" aria-hidden="true" />

@@ -2,18 +2,12 @@ import { useGLTF } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useLayoutEffect, useMemo, useRef, type MutableRefObject } from "react";
 import * as THREE from "three";
+import { PAINTS, type PaintId } from "./paints";
+export { PAINTS, type PaintId };
 
 /** Public path of the compressed model (meshopt + WebP). CC-BY 4.0, credited in the footer. */
 export const CAR_URL = `${import.meta.env.BASE_URL}models/car.glb`;
 
-/** Paint finishes offered in the live colour picker, tuned for the pale studio. */
-export const PAINTS = {
-  carmine: { label: "אדום", color: "#7d0a10", metalness: 0.55, roughness: 0.26 },
-  graphite: { label: "גרפיט", color: "#2a2d31", metalness: 0.75, roughness: 0.32 },
-  silver: { label: "כסף", color: "#a9adb3", metalness: 0.9, roughness: 0.28 },
-  pearl: { label: "לבן", color: "#e9e6df", metalness: 0.2, roughness: 0.22 },
-} as const;
-export type PaintId = keyof typeof PAINTS;
 
 /** Scroll/animation driven pose. Mutated by GSAP, read every frame (no React renders). */
 export interface CarPose {
@@ -110,6 +104,17 @@ export function RealCar({ paint = "carmine", pose, plate = "PRO·DRIVE" }: RealC
           mat.needsUpdate = true;
         }
         if (/^Paint [12]/.test(mat.name)) p.paints.push(mat);
+        // transmission renders the whole scene a second time every frame: tinted see-through glass instead
+        if (mat.name === "Glass") {
+          mat.transmission = 0;
+          mat.transparent = true;
+          mat.opacity = 0.32;
+          mat.color.set("#1b2025");
+          mat.roughness = 0.04;
+          mat.metalness = 0.1;
+          mat.depthWrite = false;
+          mat.needsUpdate = true;
+        }
         // the sample asset prints its maker's name on the tyre wall: plain rubber instead
         if (mat.name === "Tireside") {
           mat.map = null;

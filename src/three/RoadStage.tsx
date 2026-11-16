@@ -136,6 +136,14 @@ function Rig({ paint }: { paint: PaintId }) {
   );
 }
 
+/** Mounts inside Suspense, so it only runs once the car and the sky have loaded. */
+function Ready({ onReady }: { onReady?: () => void }) {
+  useEffect(() => {
+    onReady?.();
+  }, [onReady]);
+  return null;
+}
+
 /** Shifts the projection so the car sits in the left half of a wide screen (text on the right). */
 function ViewOffset() {
   const { camera, size } = useThree();
@@ -150,7 +158,7 @@ function ViewOffset() {
 }
 
 /** The hero's world: the car on an open road under a pale daylight haze. */
-export default function RoadStage({ paint }: { paint: PaintId }) {
+export default function RoadStage({ paint, onReady }: { paint: PaintId; onReady?: () => void }) {
   const wrap = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
   useEffect(() => {
@@ -165,7 +173,7 @@ export default function RoadStage({ paint }: { paint: PaintId }) {
     <div ref={wrap} className="hero-canvas" aria-hidden="true">
       <Canvas
         frameloop={visible ? "always" : "never"}
-        dpr={[1, phone ? 1.5 : 2]}
+        dpr={[1, phone ? 1.25 : 1.5]}
         camera={{ position: [1, 1.25, 10], fov: 28, near: 0.1, far: 140 }}
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
       >
@@ -176,6 +184,7 @@ export default function RoadStage({ paint }: { paint: PaintId }) {
           <Environment files={SKY_HDRI} environmentIntensity={0.9} />
           <Road />
           <Rig paint={paint} />
+          <Ready onReady={onReady} />
         </Suspense>
         {/* low warm sun from behind-left: long highlights on the paint */}
         <directionalLight position={[-6, 5, -3]} intensity={1.1} color="#fff1dc" />
