@@ -86,7 +86,7 @@ export const ScrollFrames = forwardRef<ScrollFramesHandle, { set: FrameSet; onFi
       const s = Math.max(c.width / img.naturalWidth, c.height / img.naturalHeight);
       const w = img.naturalWidth * s;
       const h = img.naturalHeight * s;
-      const x = (c.width - w) * (c.width / c.height > 1 ? 0.35 : 0.5);
+      const x = (c.width - w) * 0.5;
       g.drawImage(img, x, (c.height - h) / 2, w, h);
       drawn.current = img === imgs.current[i] ? i : -1;
     };

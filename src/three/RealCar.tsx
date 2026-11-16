@@ -122,6 +122,11 @@ export function RealCar({ paint = "carmine", pose, plate = "PRO·DRIVE" }: RealC
           mat.color.set("#151515");
           mat.needsUpdate = true;
         }
+        if (mat.name === "Tiretread") {
+          mat.color.set("#2b2b2b");
+          mat.roughness = 0.92;
+          mat.needsUpdate = true;
+        }
         if (/Headlight|Brakelight|Signallight/.test(mat.name)) p.lights.push(mat);
         mat.envMapIntensity = 1;
       });

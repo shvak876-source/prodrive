@@ -8,10 +8,18 @@ import Landing from "./pages/Landing";
 const CatalogPage = lazy(() => import("./pages/CatalogPage"));
 const AboutPage = lazy(() => import("./pages/AboutPage"));
 const RenderCar = lazy(() => import("./pages/RenderCar"));
+const ShootCar = lazy(() => import("./pages/ShootCar"));
 
 export default function App() {
   const { pathname } = useLocation();
   // internal page used only to render the site's still images from the 3D model
+  if (pathname === "/__shoot") {
+    return (
+      <Suspense fallback={null}>
+        <ShootCar />
+      </Suspense>
+    );
+  }
   if (pathname === "/__render") {
     return (
       <Suspense fallback={null}>

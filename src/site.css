@@ -118,10 +118,12 @@ p { margin: 0; }
 /* ================================================================== hero (road) + catalog panel */
 .hero { position: relative; height: 100svh; min-height: 640px; overflow: hidden; background: var(--sky); }
 .hero-canvas { position: absolute; inset: 0; animation: fadeIn 0.9s both; }
-.hero-film { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-/* overlay on the road: lead + action, bottom-right; the headline itself is painted on the asphalt */
-.hero-ui { position: absolute; right: var(--m); bottom: clamp(28px, 5vh, 56px); display: flex; flex-direction: column; align-items: flex-end; gap: 18px; text-align: right; }
-.hero-lead { font-size: var(--step-lead); line-height: 1.35; max-width: 34ch; color: #fff; font-weight: 500; background: rgba(18, 18, 18, 0.55); padding: 10px 16px; clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+.hero-film { position: absolute; inset: 0; width: 100%; height: 100%; display: block; animation: fadeIn 0.9s both; }
+/* the headline sits in the sky, top-right, beside the car's nose */
+.hero-copy { position: absolute; right: var(--m); top: clamp(88px, 11vh, 120px); width: min(40vw, 600px); display: flex; flex-direction: column; align-items: flex-start; gap: 18px; text-align: right; z-index: 1; }
+.hero-kicker { font-size: 13px; font-weight: 800; letter-spacing: 0.18em; color: var(--accent); direction: ltr; }
+.hero-copy .hero-title { font-size: clamp(3.6rem, 1.4rem + 5.6vw, 8.6rem); line-height: 0.8; color: var(--ink); }
+.hero-lead { font-size: var(--step-lead); line-height: 1.4; max-width: 36ch; color: #2b2d30; font-weight: 500; }
 .hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; justify-content: flex-end; }
 .swatches { display: flex; gap: 8px; background: rgba(18, 18, 18, 0.55); padding: 10px 14px; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
 .swatch { width: 40px; height: 24px; border: 0; cursor: pointer; background: var(--c); clip-path: polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%); transition: transform 0.25s var(--ease-out); position: relative; }
@@ -163,8 +165,9 @@ p { margin: 0; }
 .hero-progress { position: absolute; inset: auto 0 0 0; height: 4px; z-index: 2; }
 .hero-progress i { position: absolute; inset: 0; background: var(--accent); transform: scaleX(0); transform-origin: right; }
 @media (max-width: 900px) {
-  .hero-ui { left: var(--m); align-items: stretch; }
-  .hero-lead { font-size: 17px; }
+  .hero-copy { left: var(--m); width: auto; top: 84px; gap: 12px; }
+  .hero-copy .hero-title { font-size: 19vw; }
+  .hero-lead { font-size: 16px; }
   .hero-actions { justify-content: space-between; }
   .btn-lg { --h: 56px; font-size: 16px; }
   .door-copy { left: var(--m); max-width: none; padding: 18px 22px 22px; }

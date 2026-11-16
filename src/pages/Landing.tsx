@@ -8,7 +8,7 @@ import { HERO_START, hero } from "../three/heroState";
 import { DUR, EASE, ScrollTrigger, gsap, reducedMotion, useGSAP } from "../motion/gsap";
 import { ScrollFrames, useFrameSet, type ScrollFramesHandle } from "../components/ScrollFrames";
 
-const RoadHero = lazy(() => import("../three/RoadHero"));
+const TrackHero = lazy(() => import("../three/TrackHero"));
 
 const TITLE = "מוצאים לך רכב. מהר.";
 const SUB = "תיווך רכב שעובד רק בשבילך";
@@ -16,12 +16,13 @@ const SUB = "תיווך רכב שעובד רק בשבילך";
 /* ====================================================================== hero + catalog */
 
 /**
- * The landing page is a road: asphalt across the screen, the headline painted on it, the car on
- * it in profile facing right (~70% of the width). Pinned scroll:
+ * The landing shot: the car at a low front three-quarter angle on a track, filmed against a real
+ * horizon; the headline sits in the sky beside it. Pinned scroll:
  *   0.0–1.1  the scissor doors swing up while the camera walks toward the open door
  *   1.1–2.2  the camera goes in through the door and settles in the seat, looking out
  *   2.2–…    the catalog rises over the cabin view and its cards slide past with the scroll
- * With real footage in public/frames the same story plays from the video instead.
+ * The story is pre-rendered into frames (public/frames, scripts/shoot-frames.mjs) and scrubbed like
+ * film; without frames the same scene runs live in 3D.
  */
 function HeroCatalog() {
   const root = useRef<HTMLElement>(null);
@@ -44,11 +45,11 @@ function HeroCatalog() {
       const clip = { p: 0 };
 
       if (!frames) {
-        // arrival: the car drives in from the left and pulls up on its mark
-        hero.enter = 14;
-        gsap.to(hero, { enter: 0, duration: 2.2, ease: "expo.out", delay: 0.2 });
+        // arrival: the car rolls forward onto its mark
+        hero.enter = 6;
+        gsap.to(hero, { enter: 0, duration: 2.0, ease: "expo.out", delay: 0.2 });
       }
-      gsap.from(".hero-ui > *", { y: 30, autoAlpha: 0, duration: 0.8, ease: EASE.out, stagger: 0.08, delay: 1.2 });
+      gsap.from(".hero-copy > *", { y: 40, autoAlpha: 0, duration: 0.9, ease: EASE.out, stagger: 0.09, delay: 0.5 });
 
       const tl = gsap.timeline({
         defaults: { ease: "none" },
@@ -59,7 +60,7 @@ function HeroCatalog() {
         tl.to(hero, { doors: 1, lights: 1, duration: 0.8, ease: "power2.inOut" }, 0.15)
           .to(hero, { cam: 0.45, duration: 1.0, ease: "power1.inOut" }, 0.1)
           .to(hero, { cam: 1, duration: 1.1, ease: "power2.inOut" }, 1.1);
-      tl.to(".hero-ui", { y: 40, autoAlpha: 0, duration: 0.35, ease: "power2.in" }, 0.05)
+      tl.to(".hero-copy", { y: -60, autoAlpha: 0, duration: 0.4, ease: "power2.in" }, 0.05)
         .fromTo(".door-copy", { y: 40, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.35, ease: "power3.out" }, 0.75)
         .to(".door-copy", { y: -40, autoAlpha: 0, duration: 0.3, ease: "power2.in" }, 1.75)
         .to(".cat-panel", { yPercent: 0, duration: 0.7, ease: "power3.out" }, 2.2)
@@ -76,16 +77,15 @@ function HeroCatalog() {
         <ScrollFrames ref={film} set={frames} className="hero-film" onFirstFrame={() => setReady(true)} />
       ) : frames === null ? (
         <Suspense fallback={<div className="hero-canvas" />}>
-          <RoadHero paint={paint} title={TITLE} sub={SUB} onReady={() => setReady(true)} />
+          <TrackHero paint={paint} onReady={() => setReady(true)} />
         </Suspense>
       ) : null}
       <div className={`stage-loader ${ready ? "is-done" : ""}`} aria-hidden="true"><i /></div>
 
-      {/* the headline is painted on the road in 3D; this is the same text for search engines and screen readers */}
-      <h1 id="hero-h" className="sr-only">{TITLE} Pro Drive – {SUB}.</h1>
-
-      <div className="hero-ui">
-        <p className="sr-only">מאתרים, בודקים ומתמקחים על הרכב הבא שלך – ואתה מגיע רק לקחת מפתח.</p>
+      <div className="hero-copy">
+        <p className="hero-kicker">PRO DRIVE · תיווך רכב</p>
+        <h1 id="hero-h" className="hero-title">{TITLE}</h1>
+        <p className="hero-lead">{SUB}: מאתרים, בודקים ומתמקחים – ואתה רק לוקח מפתח.</p>
         <div className="hero-actions">
           <Button href={waLink("היי, אני מחפש רכב ואשמח לשיחה")} size="lg" tone="accent">
             ספרו לי מה אתם מחפשים
