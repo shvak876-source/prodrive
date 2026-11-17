@@ -13,7 +13,9 @@ import { hero } from "./heroState";
  * fallback when there are no frames.
  */
 const SKY_HDRI = `${import.meta.env.BASE_URL}hdri/quarry_01_1k.hdr`;
-const GROUND = 0.159; // the model's lowest point is 0.159 m below its origin
+// The tyres' contact patch is at the model's origin (a hidden helper mesh hangs lower, so the bounding box lies);
+// sink 1 cm so the rubber sits in the tarmac instead of hovering on it.
+const GROUND = -0.01;
 const WHEEL_R = 0.36;
 
 /* ------------------------------------------------------------------ track surface */
@@ -93,7 +95,7 @@ function Track() {
   const fade = useMemo(fadeTexture, []);
   return (
     <group>
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0, 0]}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0, 0]} receiveShadow>
         <circleGeometry args={[46, 96]} />
         <meshStandardMaterial color="#c3c9d2" map={asphalt} bumpMap={asphalt} bumpScale={0.6} alphaMap={fade} transparent roughness={0.82} metalness={0} depthWrite={false} />
       </mesh>
@@ -112,19 +114,27 @@ function Track() {
 // The car's nose is +z. The camera starts low at its front-right corner (nose points right on
 // screen), swings round to the open door, goes through it and sits looking out of the windshield.
 export const CAM = new THREE.CatmullRomCurve3([
-  new THREE.Vector3(-3.75, 0.9, 5.35),
-  new THREE.Vector3(-4.1, 1.15, 2.2),
-  new THREE.Vector3(-2.5, 1.2, 0.2),
-  new THREE.Vector3(-1.2, 1.12, -0.05),
-  new THREE.Vector3(-0.32, 1.1, 0.05),
+  new THREE.Vector3(-2.95, 0.63, 4.25),
+  new THREE.Vector3(-4.1, 1.0, 2.2),
+  new THREE.Vector3(-2.5, 1.05, 0.2),
+  new THREE.Vector3(-1.2, 0.97, -0.05),
+  new THREE.Vector3(-0.32, 0.95, 0.05),
 ]);
 export const LOOK = new THREE.CatmullRomCurve3([
-  new THREE.Vector3(0.35, 0.92, 0.45),
-  new THREE.Vector3(-0.2, 0.7, 0.1),
-  new THREE.Vector3(-0.3, 0.85, -0.2),
-  new THREE.Vector3(-0.3, 0.9, 1.4),
-  new THREE.Vector3(-0.25, 0.9, 4.0),
+  new THREE.Vector3(0.3, 0.35, 0.4),
+  new THREE.Vector3(-0.2, 0.55, 0.1),
+  new THREE.Vector3(-0.3, 0.7, -0.2),
+  new THREE.Vector3(-0.3, 0.75, 1.4),
+  new THREE.Vector3(-0.25, 0.75, 4.0),
 ]);
+
+/** Tyre contact points (x, z) under the four wheels, measured from the model. */
+const WHEELS: [number, number][] = [
+  [0.98, 1.49],
+  [-0.98, 1.49],
+  [0.985, -1.31],
+  [-0.985, -1.31],
+];
 
 function Rig({ paint, live }: { paint: PaintId; live: boolean }) {
   const car = useRef<THREE.Group>(null);
@@ -151,7 +161,7 @@ function Rig({ paint, live }: { paint: PaintId; live: boolean }) {
 
     // narrow screens step back so the whole car stays in frame
     const aspect = size.width / size.height;
-    const widen = Math.max(1, 1.55 / aspect) ** 0.9;
+    const widen = Math.max(1, 1.55 / aspect) ** 0.78;
     CAM.getPoint(h.cam, p);
     LOOK.getPoint(h.cam, l);
     const outside = 1 - Math.min(1, h.cam * 2.5);
@@ -167,8 +177,15 @@ function Rig({ paint, live }: { paint: PaintId; live: boolean }) {
     <group ref={car}>
       <RealCar paint={paint} pose={pose} />
       <group position-y={-GROUND + 0.012}>
-        <SoftShadow length={6.2} width={3} opacity={0.75} /> {/* taste-skill-ignore: 3D ground contact shadow */}
+        <SoftShadow length={6.2} width={3} opacity={0.95} /> {/* taste-skill-ignore: 3D ground contact shadow */}
         <SoftShadow length={4.9} width={2.05} opacity={0.95} /> {/* taste-skill-ignore: 3D ground contact shadow */}
+        {/* where each tyre presses on the road: a tight, almost black patch, what makes the car sit, not float */}
+        {WHEELS.map(([x, z], i) => (
+          <group key={i} position={[x, 0.002, z]}>
+            <SoftShadow length={0.95} width={0.5} opacity={0.95} /> {/* taste-skill-ignore: 3D ground contact shadow */}
+            <SoftShadow length={0.5} width={0.3} opacity={1} /> {/* taste-skill-ignore: 3D ground contact shadow */}
+          </group>
+        ))}
       </group>
     </group>
   );
@@ -182,7 +199,7 @@ function Ready({ onReady }: { onReady?: () => void }) {
 }
 
 /** Everything inside the canvas; shared by the live hero and the offline frame renderer. */
-export function TrackScene({ paint, live = true, onReady }: { paint: PaintId; live?: boolean; onReady?: () => void }) {
+export function TrackScene({ paint, live = true, film = false, onReady }: { paint: PaintId; live?: boolean; film?: boolean; onReady?: () => void }) {
   return (
     <>
       <Suspense fallback={null}>
@@ -198,7 +215,23 @@ export function TrackScene({ paint, live = true, onReady }: { paint: PaintId; li
         <Rig paint={paint} live={live} />
         <Ready onReady={onReady} />
       </Suspense>
-      <directionalLight position={[-6, 6, -5]} intensity={1.4} color="#fff1dc" />
+      {/* low sun from behind-left: the rim light on the roof and a long shadow toward the camera */}
+      <directionalLight
+        position={[-6, 6, -5]}
+        intensity={film ? 2.2 : 1.4}
+        color="#fff1dc"
+        castShadow={film}
+        shadow-mapSize={[4096, 4096]}
+        shadow-bias={-0.0002}
+        shadow-normalBias={0.02}
+        shadow-radius={6}
+        shadow-camera-left={-5}
+        shadow-camera-right={5}
+        shadow-camera-top={5}
+        shadow-camera-bottom={-5}
+        shadow-camera-near={1}
+        shadow-camera-far={20}
+      />
       <hemisphereLight args={["#e8eef4", "#5e5a52", 0.35]} />
     </>
   );
@@ -220,7 +253,7 @@ export default function TrackHero({ paint, onReady }: { paint: PaintId; onReady?
       <Canvas
         frameloop={visible ? "always" : "never"}
         dpr={[1, phone ? 1.25 : 1.5]}
-        camera={{ position: [-3.75, 0.9, 5.35], fov: 32, near: 0.05, far: 400 }}
+        camera={{ position: [-2.95, 0.63, 4.25], fov: 32, near: 0.05, far: 400 }}
         gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.0 }}
       >
         <TrackScene paint={paint} onReady={onReady} />

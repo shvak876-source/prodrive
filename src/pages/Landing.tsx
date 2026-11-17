@@ -5,7 +5,7 @@ import { FOUNDER, SITE, waLink } from "../data/site";
 import { Button, Tag, img } from "../components/ui";
 import { PAINTS, type PaintId } from "../three/paints";
 import { HERO_START, hero } from "../three/heroState";
-import { DUR, EASE, ScrollTrigger, gsap, reducedMotion, useGSAP } from "../motion/gsap";
+import { DUR, EASE, ScrollTrigger, SplitText, gsap, reducedMotion, useGSAP } from "../motion/gsap";
 import { ScrollFrames, useFrameSet, type ScrollFramesHandle } from "../components/ScrollFrames";
 
 const TrackHero = lazy(() => import("../three/TrackHero"));
@@ -49,7 +49,10 @@ function HeroCatalog() {
         hero.enter = 6;
         gsap.to(hero, { enter: 0, duration: 2.0, ease: "expo.out", delay: 0.2 });
       }
-      gsap.from(".hero-copy > *", { y: 40, autoAlpha: 0, duration: 0.9, ease: EASE.out, stagger: 0.09, delay: 0.5 });
+      const words = new SplitText(".hero-title", { type: "words", mask: "words" });
+      gsap.from(words.words, { yPercent: 110, duration: 1.1, ease: "expo.out", stagger: 0.07, delay: 0.35 });
+      gsap.from([".hero-kicker", ".hero-side > *"], { y: 30, autoAlpha: 0, duration: 0.9, ease: EASE.out, stagger: 0.08, delay: 0.6 });
+      gsap.from(".hero-scrim", { autoAlpha: 0, duration: 1.2, ease: "power2.out" });
 
       const tl = gsap.timeline({
         defaults: { ease: "none" },
@@ -60,7 +63,8 @@ function HeroCatalog() {
         tl.to(hero, { doors: 1, lights: 1, duration: 0.8, ease: "power2.inOut" }, 0.15)
           .to(hero, { cam: 0.45, duration: 1.0, ease: "power1.inOut" }, 0.1)
           .to(hero, { cam: 1, duration: 1.1, ease: "power2.inOut" }, 1.1);
-      tl.to(".hero-copy", { y: -60, autoAlpha: 0, duration: 0.4, ease: "power2.in" }, 0.05)
+      tl.to(".hero-copy", { y: 60, autoAlpha: 0, duration: 0.4, ease: "power2.in" }, 0.05)
+        .to(".hero-scrim", { autoAlpha: 0, duration: 0.4 }, 0.05)
         .fromTo(".door-copy", { y: 40, autoAlpha: 0 }, { y: 0, autoAlpha: 1, duration: 0.35, ease: "power3.out" }, 0.75)
         .to(".door-copy", { y: -40, autoAlpha: 0, duration: 0.3, ease: "power2.in" }, 1.75)
         .to(".cat-panel", { yPercent: 0, duration: 0.7, ease: "power3.out" }, 2.2)
@@ -82,9 +86,13 @@ function HeroCatalog() {
       ) : null}
       <div className={`stage-loader ${ready ? "is-done" : ""}`} aria-hidden="true"><i /></div>
 
+      <div className="hero-scrim" aria-hidden="true" />
       <div className="hero-copy">
-        <p className="hero-kicker">PRO DRIVE · תיווך רכב</p>
-        <h1 id="hero-h" className="hero-title">{TITLE}</h1>
+        <div className="hero-head">
+          <p className="hero-kicker">PRO DRIVE · תיווך רכב</p>
+          <h1 id="hero-h" className="hero-title">{TITLE}</h1>
+        </div>
+        <div className="hero-side">
         <p className="hero-lead">{SUB}: מאתרים, בודקים ומתמקחים – ואתה רק לוקח מפתח.</p>
         <div className="hero-actions">
           <Button href={waLink("היי, אני מחפש רכב ואשמח לשיחה")} size="lg" tone="accent">
@@ -106,6 +114,7 @@ function HeroCatalog() {
             </div>
           )}
         </div>
+      </div>
       </div>
 
       <div className="door-copy">

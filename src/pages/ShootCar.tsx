@@ -2,6 +2,7 @@ import { Canvas, useThree } from "@react-three/fiber";
 import { useEffect } from "react";
 import * as THREE from "three";
 import { TrackScene } from "../three/TrackHero";
+import { FilmLook } from "../three/FilmLook";
 import { hero, heroAt } from "../three/heroState";
 import type { PaintId } from "../three/paints";
 
@@ -13,7 +14,7 @@ const q = new URLSearchParams(window.location.search);
 Object.assign(hero, heroAt(Number(q.get("p") ?? 0)));
 
 function Signal() {
-  const { invalidate } = useThree();
+  const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
     let n = 0;
     const tick = window.setInterval(() => {
@@ -35,9 +36,11 @@ export default function ShootCar() {
         frameloop="demand"
         dpr={Number(q.get("dpr") ?? 1)}
         camera={{ fov: Number(q.get("fov") ?? 32), near: 0.05, far: 400 }}
-        gl={{ antialias: true, preserveDrawingBuffer: true, toneMapping: THREE.ACESFilmicToneMapping }}
+        shadows="soft"
+        gl={{ antialias: false, preserveDrawingBuffer: true, toneMapping: THREE.NoToneMapping }}
       >
-        <TrackScene paint={(q.get("paint") ?? "carmine") as PaintId} live={false} />
+        <TrackScene paint={(q.get("paint") ?? "carmine") as PaintId} live={false} film />
+        {q.get("fx") !== "0" && <FilmLook />}
         <Signal />
       </Canvas>
     </div>
